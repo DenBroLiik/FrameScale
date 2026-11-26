@@ -18,3 +18,13 @@ type="required"
 versionRange="[1.21.1]"
 ordering="NONE"
 side="CLIENT"
+
+[[dependencies.framescale]]
+modId="sodium"
+type="optional"
+versionRange="[0.8.13,0.9)"
+ordering="NONE"
+side="CLIENT"
+
+[modproperties.framescale]
+"sodium:config_api_user"="by.xopilot.framescale.SodiumConfigEntry"

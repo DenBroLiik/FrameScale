@@ -17,18 +17,21 @@ import net.minecraft.client.gui.screens.Screen;
 
 @Mod(value="framescale", dist=Dist.CLIENT)
 public final class FrameScale {
+    private static FrameScale instance;
     private final FrameStats frames=new FrameStats(1800), gpu=new FrameStats(1800);
     private final GpuTimer timer=new GpuTimer();
     private boolean measuring, gpuAvailable, gpuFailed, gpuPermitted;
     private long lastFrame;
     public FrameScale(ModContainer container) {
+        instance=this;
         container.registerExtensionPoint(IConfigScreenFactory.class, (mod, parent) -> settings(parent));
         NeoForge.EVENT_BUS.addListener(this::screenInit);
         NeoForge.EVENT_BUS.addListener(this::commands);
         NeoForge.EVENT_BUS.addListener(this::pre);
         NeoForge.EVENT_BUS.addListener(this::post);
     }
-    private Screen settings(Screen parent) { return new FrameScaleScreen(parent, this::stop); }
+    private Screen settings(Screen parent) { return createSettings(parent); }
+    static Screen createSettings(Screen parent) { return new FrameScaleScreen(parent, ()->{ if(instance!=null) instance.stop(); }); }
     private void screenInit(ScreenEvent.Init.Post event) { VideoSettingsEntry.add(event, this::settings); }
     private void pre(RenderFrameEvent.Pre ignored) {
         if (!measuring || Minecraft.getInstance().level==null) { lastFrame=0; return; }
