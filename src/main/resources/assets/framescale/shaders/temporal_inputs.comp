@@ -1,0 +1,47 @@
+#version 450 core
+// Static opaque geometry only. GL lower-left origin; +Y up; previous-current pixels.
+layout(local_size_x=8,local_size_y=8) in;
+layout(binding=0) uniform sampler2D sceneColor;
+layout(binding=1) uniform sampler2D sceneDepth;
+layout(rgba16f,binding=0) writeonly uniform image2D hdrOut;
+layout(r32f,binding=1) writeonly uniform image2D depthOut;
+layout(rg16f,binding=2) writeonly uniform image2D motionOut;
+layout(r8ui,binding=3) writeonly uniform uimage2D validOut;
+uniform ivec2 sourceOrigin,renderExtent;
+uniform mat4 currentToPreviousClip;
+uniform vec2 currentJitterNdc;
+bool finite4(vec4 v){return !any(isnan(v))&&!any(isinf(v));}
+void main(){
+    ivec2 p=ivec2(gl_GlobalInvocationID.xy);
+    if(any(greaterThanEqual(p,renderExtent))||
+       any(greaterThanEqual(p,imageSize(hdrOut)))||
+       any(greaterThanEqual(p,imageSize(depthOut)))||
+       any(greaterThanEqual(p,imageSize(motionOut)))||
+       any(greaterThanEqual(p,imageSize(validOut)))) return;
+    ivec2 s=sourceOrigin+p;
+    vec3 rgb=vec3(0);float depth=1.;vec2 motion=vec2(0);uint valid=0u;
+    if(all(greaterThanEqual(s,ivec2(0)))&&all(lessThan(s,textureSize(sceneColor,0)))&&
+       all(lessThan(s,textureSize(sceneDepth,0)))){
+        vec3 c=texelFetch(sceneColor,s,0).rgb;
+        bool colorValid=finite4(vec4(c,1));
+        if(colorValid) rgb=clamp(c,vec3(0),vec3(65504));
+        float z=texelFetch(sceneDepth,s,0).r;
+        if(!isnan(z)&&!isinf(z)&&z>=0.&&z<=1.){
+            depth=z;
+            if(colorValid&&z>0.&&z<1.){
+                vec2 ndc=(vec2(p)+.5)/vec2(renderExtent)*2.-1.-currentJitterNdc;
+                vec4 prev=currentToPreviousClip*vec4(ndc,z*2.-1.,1.);
+                if(finite4(prev)&&prev.w>1e-6){
+                    vec3 q=prev.xyz/prev.w;
+                    vec2 mv=(q.xy-ndc)*.5*vec2(renderExtent);
+                    if(finite4(vec4(q,1))&&all(lessThanEqual(abs(q),vec3(1)))&&
+                       all(lessThanEqual(abs(mv),vec2(65504)))){
+                        motion=mv;valid=1u;
+                    }
+                }
+            }
+        }
+    }
+    imageStore(hdrOut,p,vec4(rgb,1));imageStore(depthOut,p,vec4(depth,0,0,0));
+    imageStore(motionOut,p,vec4(motion,0,0));imageStore(validOut,p,uvec4(valid,0,0,0));
+}

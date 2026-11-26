@@ -1,6 +1,10 @@
-# FrameScale 0.8.0-alpha.1
+# FrameScale 0.8.0-alpha.2
 
 Экспериментальный client-side мод Minecraft 1.21.1 / NeoForge / Java 21. Использует штатный временной апскейлер Photon (не NVIDIA DLSS). Не содержит нативных библиотек и не меняет рендер до явной команды игрока. Iris используется через проверяемую рефлексию; API не гарантирован, при несовместимости команда сообщает об ошибке.
+
+## 0.8.0-alpha.2 — Temporal input compute
+
+Standalone GLSL converts cropped packed HDR and depth into RGBA16F/R32F and generates static camera motion RG16F with R8UI validity. Exact shader tested on synthetic GL textures in CI. No in-game dispatch or NGX evaluation. See docs/PHOTON_CAPTURE.md.
 
 ## 0.8.0-alpha.1 — Photon pre-temporal metadata observer
 

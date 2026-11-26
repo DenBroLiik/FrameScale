@@ -67,3 +67,7 @@ A standalone Linux Vulkan → GL smoke test implements the first external memory
 5. Compare native, Photon and DLSS with identical scenes, capture p50/p95, 1% low, GPU time, VRAM, frame pacing and moving-image artifacts. Gate on measured net gain after interop/NGX overhead. Do not claim lossless rendering.
 
 Reference: https://developer.nvidia.com/rtx/streamline/get-started and https://github.com/NVIDIA/DLSS . Integration must follow the applicable SDK license. No proprietary binaries included in this release.
+
+## 0.8.0-alpha.2
+
+Standalone temporal input shader and synthetic EGL tests; static camera motion only. Not NGX-ready, no game dispatch.
