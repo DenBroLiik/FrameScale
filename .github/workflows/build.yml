@@ -59,6 +59,11 @@ jobs:
         run: |
           cargo test --manifest-path native/dlss/rust/Cargo.toml --locked
           cargo check --manifest-path native/dlss/rust/Cargo.toml --locked
+      - name: Rust Vulkan manager and software queue smoke
+        run: |
+          cargo test --manifest-path native/dlss/rust/Cargo.toml --locked --features vulkan
+          cargo build --manifest-path native/dlss/rust/Cargo.toml --locked --features vulkan --bin vulkan_probe
+          timeout 20s native/dlss/rust/target/debug/vulkan_probe --smoke
       - name: Compile mod
         run: gradle --no-daemon build
       - uses: actions/upload-artifact@v4

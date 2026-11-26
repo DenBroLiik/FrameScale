@@ -1,6 +1,10 @@
-# FrameScale 0.7.0-alpha.2
+# FrameScale 0.7.0-alpha.3
 
 Экспериментальный client-side мод Minecraft 1.21.1 / NeoForge / Java 21. Использует штатный временной апскейлер Photon (не NVIDIA DLSS). Не содержит нативных библиотек и не меняет рендер до явной команды игрока. Iris используется через проверяемую рефлексию; API не гарантирован, при несовместимости команда сообщает об ошибке.
+
+## 0.7.0-alpha.3 — Rust Vulkan Device Manager
+
+Optional Vulkan feature uses pinned ash 0.38 with the system Vulkan loader. Enumerates physical devices and exact device/driver UUIDs, graphics+compute queues, FD extension and candidate format support. Creates diagnostic logical devices and validates a command buffer/fence submission. Strict NVIDIA UUID matching for interop, separate explicit any-device smoke mode for Mesa CI. No NGX-required optional features enabled yet; not an NGX-ready device. No shared image creation or actual DLSS here. Existing JNI remains unchanged. See native/dlss/README.md.
 
 ## 0.7.0-alpha.2 — Rust DLSS backend
 

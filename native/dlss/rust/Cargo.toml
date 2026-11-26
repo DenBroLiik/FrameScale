@@ -1,6 +1,6 @@
 [package]
 name = "framescale-dlss"
-version = "0.7.0-alpha.2"
+version = "0.7.0-alpha.3"
 edition = "2024"
 rust-version = "1.85"
 publish = false
@@ -8,6 +8,10 @@ publish = false
 [features]
 default = []
 ngx = []
+vulkan = ["dep:ash"]
+
+[dependencies]
+ash = { version = "=0.38.0", default-features = false, features = ["linked", "std"], optional = true }
 
 [lib]
 crate-type = ["rlib", "staticlib"]

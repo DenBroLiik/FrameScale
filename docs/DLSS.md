@@ -2,6 +2,10 @@
 
 FrameScale uses Photon TAAU, not DLSS. No fake DLSS switch is exposed. Native Linux DLSS Super Resolution requires an NVIDIA-supported Vulkan/NGX implementation; Minecraft 1.21.1 Iris renders using OpenGL. No replacement of GPUTape/Sodium/Iris or forced VulkanMod migration is acceptable.
 
+## Progress in 0.7.0-alpha.3
+
+Optional Rust ash device manager creates diagnostic Vulkan instances/logical devices, queries external candidate image formats and semaphores, and submits an empty command buffer with bounded fence wait. NVIDIA path requires exact GL device/driver UUID. The SDK extension/feature discovery and device feature chain for NGX remain unimplemented. Separate Mesa smoke path is not interop or DLSS verification.
+
 ## Progress in 0.7.0-alpha.2
 
 Active adapter control plane is Rust: device identity matching, extension validation, frame checks, explicit retirement and failure states. Minimal C++ shim only translates NGX API and resource structures. SDK-independent Rust tests; actual Vulkan context creation, SDK compilation and hardware validation remain next gates.

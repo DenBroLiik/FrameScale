@@ -163,6 +163,8 @@ impl<D:Driver> Session<D> {
 }
 #[cfg(feature="ngx")]
 pub mod ngx;
+#[cfg(feature="vulkan")]
+pub mod vulkan;
 
 #[cfg(test)]
 mod tests {
