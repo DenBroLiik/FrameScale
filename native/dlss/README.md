@@ -51,3 +51,7 @@ From rust/: `cargo build --locked --features gl-interop --bin gl_import_probe`; 
 ## Rust JNI (alpha.7)
 
 `sh native/jni/build.sh` from the repository root builds the optional ABI-1 diagnostic library with the `jni` feature. No NVIDIA SDK is required. The game uses the shared Rust Vulkan inventory for UUID matching. Interop and DLSS execution remain standalone/unconnected to this JNI path. See native/jni/README.md.
+
+## Nonblocking scheduler (alpha.8)
+
+Run `cargo run --locked --features vulkan --bin scheduler_probe` from rust/. It submits 128 empty command buffers with three reusable slots, polls fences and checks backpressure; local images remain allocated per slot but are not referenced by the commands. `try_begin` returns None when full, `submit` accepts bounded wait/signal lists, `poll` reports Vulkan completion, and unsafe `release` additionally requires external consumer retirement. Tickets carry a scheduler ID and generation; stale/foreign tickets fail. No explicit fence/device idle waits in scheduler methods; driver calls themselves can still block. One queue owner only. On Vulkan error the scheduler is poisoned; dedicated diagnostic process must exit without destroying in-flight resources. Explicit close only when drained, never implicit cleanup of exposed work. The NGX session is still single-flight and not connected to this ring, and GL synchronization/presentation must be implemented before real frame use.

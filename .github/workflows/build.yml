@@ -83,6 +83,10 @@ jobs:
           elif [ "$rc" != 0 ]; then
             exit "$rc"
           fi
+      - name: Rust nonblocking scheduler smoke
+        run: |
+          cargo build --manifest-path native/dlss/rust/Cargo.toml --locked --features vulkan --bin scheduler_probe
+          timeout 20s native/dlss/rust/target/debug/scheduler_probe
       - name: Compile mod
         run: gradle --no-daemon build
       - uses: actions/upload-artifact@v4

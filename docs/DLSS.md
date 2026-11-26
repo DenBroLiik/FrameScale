@@ -2,6 +2,10 @@
 
 FrameScale uses Photon TAAU, not DLSS. No fake DLSS switch is exposed. Native Linux DLSS Super Resolution requires an NVIDIA-supported Vulkan/NGX implementation; Minecraft 1.21.1 Iris renders using OpenGL. No replacement of GPUTape/Sodium/Iris or forced VulkanMod migration is acceptable.
 
+## Progress in 0.7.0-alpha.8
+
+Rust nonblocking Vulkan scheduler supports up to four reusable command/fence slots, generation tickets, Busy backpressure and explicit release after both Vulkan and external consumers retire. Separate software submission smoke. Existing NGX session remains single-flight; no production GL frame handoff or in-game integration.
+
 ## Progress in 0.7.0-alpha.7
 
 Rust JNI diagnostic replaces the C library, keeping ABI 1. Minecraft's explicit native probe now uses the same ash inventory as the standalone device manager. No GL import, queue submission or NGX evaluation inside Minecraft yet.

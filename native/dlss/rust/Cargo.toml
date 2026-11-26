@@ -1,6 +1,6 @@
 [package]
 name = "framescale-dlss"
-version = "0.7.0-alpha.7"
+version = "0.7.0-alpha.8"
 edition = "2024"
 rust-version = "1.85"
 publish = false

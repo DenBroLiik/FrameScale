@@ -1,6 +1,10 @@
-# FrameScale 0.7.0-alpha.7
+# FrameScale 0.7.0-alpha.8
 
 Экспериментальный client-side мод Minecraft 1.21.1 / NeoForge / Java 21. Использует штатный временной апскейлер Photon (не NVIDIA DLSS). Не содержит нативных библиотек и не меняет рендер до явной команды игрока. Iris используется через проверяемую рефлексию; API не гарантирован, при несовместимости команда сообщает об ошибке.
+
+## 0.7.0-alpha.8 — Nonblocking Vulkan scheduler
+
+Added a bounded Rust command-buffer/fence ring (1–4 slots) with generation-tagged tickets, nonblocking fence polling, explicit external-consumer retirement, backpressure, cancellation and fail-closed errors. No per-frame command buffer/fence allocation or CPU fence wait in the scheduler. CI tests saturation, stale tickets and a software Vulkan run of 128 empty submissions using three reusable slots with local image allocations. These images are lifetime-only in this test, not actual rendered frames. NGX still supports only one in-flight evaluation; GL ownership handoff and game rendering are not wired to the scheduler. No FPS claim.
 
 ## 0.7.0-alpha.7 — Rust JNI
 
