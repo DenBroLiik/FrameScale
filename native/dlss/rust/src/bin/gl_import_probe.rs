@@ -42,6 +42,18 @@ mod probe {
         }}
     }
     pub fn run()->i32{
+        let args=std::env::args().skip(1).collect::<Vec<_>>();
+        if args.len()==1&&args[0]=="--local"{
+            let res=(||->Result<(),String>{
+                let dev=InstanceContext::new(&[]).map_err(|e|format!("{e:?}"))?.create_smoke().map_err(|e|format!("{e:?}"))?;
+                framescale_dlss::roundtrip::local_smoke(&dev)?;
+                unsafe{dev.close()};Ok(())
+            })();
+            if let Err(e)=res{eprintln!("Local smoke failed: {e}");std::process::exit(1)}
+            return 0
+        }
+        let roundtrip=args.len()==1&&args[0]=="--roundtrip";
+        if !args.is_empty()&&!roundtrip{eprintln!("usage: gl_import_probe [--local | --roundtrip]");return 2}
         let Some(_egl)=Egl::new()else{eprintln!("SKIP: no EGL OpenGL 4.5");return 77};
         let gl=match unsafe{GlContext::capture()}{
             Ok(g)=>g,
@@ -51,6 +63,13 @@ mod probe {
         let result=(||->Result<(),String>{
             let vk=InstanceContext::new(&[]).map_err(|e|format!("{e:?}"))?;
             let dev=vk.create_matched(gl.devices(),gl.driver(),&[]).map_err(|e|format!("{e:?}"))?;
+            if roundtrip{
+                // Dedicated context, no other users. Do not unwind EGL on failed synchronization.
+                if let Err(e)=unsafe{framescale_dlss::roundtrip::run(&gl,&dev)}{
+                    eprintln!("Roundtrip failed: {e}");std::process::exit(1)
+                }
+                unsafe{dev.close()};return Ok(())
+            }
             for k in [ImageKind::Rgba8,ImageKind::HdrInput,ImageKind::HdrOutput,ImageKind::DepthCopy,ImageKind::Motion]{
                 let im=SharedImage::external(&dev,Extent{w:64,h:48},k).map_err(|e|format!("{e:?}"))?;
                 let pair=ImportedImage::new(&gl,im).map_err(|e|format!("{e:?}"))?;

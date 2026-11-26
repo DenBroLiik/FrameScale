@@ -169,6 +169,8 @@ pub mod vulkan;
 pub mod shared;
 #[cfg(all(feature="gl-interop",target_os="linux"))]
 pub mod gl_interop;
+#[cfg(all(feature="gl-interop",target_os="linux"))]
+pub mod roundtrip;
 
 #[cfg(test)]
 mod tests {

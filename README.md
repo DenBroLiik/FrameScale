@@ -1,6 +1,10 @@
-# FrameScale 0.7.0-alpha.5
+# FrameScale 0.7.0-alpha.6
 
 Экспериментальный client-side мод Minecraft 1.21.1 / NeoForge / Java 21. Использует штатный временной апскейлер Photon (не NVIDIA DLSS). Не содержит нативных библиотек и не меняет рендер до явной команды игрока. Iris используется через проверяемую рефлексию; API не гарантирован, при несовместимости команда сообщает об ошибке.
+
+## 0.7.0-alpha.6 — Rust bidirectional RGBA8 diagnostic
+
+The Rust EGL probe supports --roundtrip: 16 Vulkan/GL exchanges of one 8x8 shared RGBA8 image, reusing two binary semaphores, a Vulkan command buffer/fence and a verification buffer. Explicit EXTERNAL queue-family ownership transitions in GENERAL, different pixel patterns and full readback in both directions. The last submission retains Vulkan ownership. --local verifies Vulkan clear and readback without external objects. Diagnostic only: synchronous fence/readback, process exit on synchronization failure and outer timeout required; not a real-time frame loop. Actual NVIDIA execution not verified. No gameplay changes.
 
 ## 0.7.0-alpha.5 — Rust OpenGL import
 

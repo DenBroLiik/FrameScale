@@ -61,6 +61,8 @@ functions!{
     wait:unsafe extern "system" fn(U,U,*const U,U,*const U,*const U)="glWaitSemaphoreEXT",
     signal:unsafe extern "system" fn(U,U,*const U,U,*const U,*const U)="glSignalSemaphoreEXT",
     flush:unsafe extern "system" fn()="glFlush",
+    read_texture:unsafe extern "system" fn(U,I,U,U,I,*mut c_void)="glGetTextureImage",
+    clear_texture:unsafe extern "system" fn(U,I,U,U,P)="glClearTexImage",
 }
 fn transfer(fd:OwnedFd,import:impl FnOnce(I)->Result<()>)->Result<()>{
     // Khronos EXT_external_objects_fd transfers ownership on successful import only.
@@ -207,6 +209,25 @@ impl<'g,'v> ImportedImage<'g,'v>{
         let o=self.objects.as_ref().unwrap();o.gl.check("pre-signal")?;
         unsafe{(o.gl.api.signal)(o.to_vk,0,null(),1,&o.tex,&GENERAL);(o.gl.api.flush)()};
         o.gl.check("signal semaphore")
+    }
+    /// Diagnostic only, not a real-time frame path.
+    /// # Safety
+    /// Fresh private RGBA8 8x8 texture, GL owns it after wait_gl, default pixel
+    /// pack/unpack state and no pixel buffer bindings. No concurrent access.
+    pub(crate) unsafe fn verify_and_write_rgba8(&mut self,expected:[u8;4],next:[u8;4])->Result<()>{
+        let o=self.objects.as_ref().unwrap();
+        o.gl.check("pre-readback")?;
+        if o.gl.integer(0x88ed)?!=0||o.gl.integer(0x88ef)?!=0{
+            return Err(GlError::Unsupported("pixel buffer bound"))
+        }
+        let mut bytes=[0u8;256];
+        unsafe{(o.gl.api.read_texture)(o.tex,0,0x1908,0x1401,256,bytes.as_mut_ptr().cast())};
+        o.gl.check("GL readback")?;
+        if bytes.chunks_exact(4).any(|v|v!=expected){
+            return Err(GlError::Unsupported("Vulkan to GL pixel mismatch"))
+        }
+        unsafe{(o.gl.api.clear_texture)(o.tex,0,0x1908,0x1401,next.as_ptr().cast())};
+        o.gl.check("GL texture clear")
     }
     /// # Safety
     /// Both APIs have retired all work; no external handles or recorded commands

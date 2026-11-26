@@ -171,6 +171,8 @@ impl DeviceContext {
     pub(crate) fn raw_instance(&self)->&Instance{&self.instance.instance}
     pub(crate) fn raw_device(&self)->&Device{&self.device}
     pub(crate) fn physical(&self)->vk::PhysicalDevice{self.physical}
+    pub(crate) fn queue(&self)->vk::Queue{self.queue}
+    pub(crate) fn family(&self)->u32{self.family}
     pub(crate) fn fd_enabled(&self)->bool{
         FD_EXTENSIONS.iter().all(|n|self.enabled_extensions.iter().any(|s|s.as_c_str()==*n))
     }

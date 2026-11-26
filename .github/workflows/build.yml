@@ -69,8 +69,9 @@ jobs:
         run: |
           cargo test --manifest-path native/dlss/rust/Cargo.toml --locked --features gl-interop
           cargo build --manifest-path native/dlss/rust/Cargo.toml --locked --features gl-interop --bin gl_import_probe
+          timeout 20s native/dlss/rust/target/debug/gl_import_probe --local
           rc=0
-          EGL_PLATFORM=surfaceless LIBGL_ALWAYS_SOFTWARE=1 timeout 20s native/dlss/rust/target/debug/gl_import_probe || rc=$?
+          EGL_PLATFORM=surfaceless LIBGL_ALWAYS_SOFTWARE=1 timeout 20s native/dlss/rust/target/debug/gl_import_probe --roundtrip || rc=$?
           if [ "$rc" = 77 ]; then
             echo "::notice::Rust GL import unsupported on software runner; NVIDIA hardware test required"
           elif [ "$rc" != 0 ]; then
