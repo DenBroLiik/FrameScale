@@ -1,0 +1,31 @@
+#version 430 core
+layout(local_size_x=8, local_size_y=8) in;
+layout(rgba8, binding=0) readonly uniform image2D sourceImage;
+layout(rgba8, binding=1) writeonly uniform image2D outputImage;
+uniform float edgeStrength;
+float distanceRGB(vec3 a, vec3 b) {
+    return dot(abs(a-b), vec3(0.299, 0.587, 0.114));
+}
+void main() {
+    ivec2 dst = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 outSize = imageSize(outputImage);
+    if (any(greaterThanEqual(dst, outSize))) return;
+    ivec2 inSize = imageSize(sourceImage);
+    vec2 p = (vec2(dst)+0.5)*vec2(inSize)/vec2(outSize)-0.5;
+    ivec2 base = ivec2(floor(p));
+    vec2 f = fract(p);
+    ivec2 hi = inSize-1;
+    vec4 a = imageLoad(sourceImage, clamp(base, ivec2(0),hi));
+    vec4 b = imageLoad(sourceImage, clamp(base+ivec2(1,0),ivec2(0),hi));
+    vec4 c = imageLoad(sourceImage, clamp(base+ivec2(0,1),ivec2(0),hi));
+    vec4 d = imageLoad(sourceImage, clamp(base+ivec2(1,1),ivec2(0),hi));
+    float gx = mix(distanceRGB(a.rgb,b.rgb),distanceRGB(c.rgb,d.rgb),f.y);
+    float gy = mix(distanceRGB(a.rgb,c.rgb),distanceRGB(b.rgb,d.rgb),f.x);
+    float contrast = max(gx,gy);
+    vec2 direction = max(vec2(gx-gy,gy-gx),vec2(0.0))/max(contrast,0.0001);
+    vec2 weight = clamp(edgeStrength,0.0,1.0)*smoothstep(0.03,0.20,contrast)*direction;
+    vec2 t = mix(f,smoothstep(vec2(0.15),vec2(0.85),f),weight);
+    vec3 rgb = mix(mix(a.rgb,b.rgb,t.x),mix(c.rgb,d.rgb,t.x),t.y);
+    float alpha = mix(mix(a.a,b.a,f.x),mix(c.a,d.a,f.x),f.y);
+    imageStore(outputImage,dst,vec4(rgb,alpha));
+}

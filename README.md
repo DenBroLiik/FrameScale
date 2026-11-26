@@ -1,6 +1,14 @@
-# FrameScale 0.5.0
+# FrameScale 0.6.0-alpha.1
 
 Экспериментальный client-side мод Minecraft 1.21.1 / NeoForge / Java 21. Использует штатный временной апскейлер Photon (не NVIDIA DLSS). Не содержит нативных библиотек и не меняет рендер до явной команды игрока. Iris используется через проверяемую рефлексию; API не гарантирован, при несовместимости команда сообщает об ошибке.
+
+## 0.6.0-alpha.1 — Independent spatial GPU backend
+
+Добавлен собственный GLSL compute kernel (4 исходных texel taps, адаптация веса интерполяции по направлению контраста, без overshoot). Это пространственная реконструкция LDR RGBA8, не FSR, не DLSS и не temporal upscaling. Работа с двумя отдельными immutable GL_TEXTURE_2D, OpenGL 4.5 DSA, группами 8×8, с проверкой формата и размеров, явным memory barrier и восстановлением program/image bindings. Алгоритм не требует CPU readback в обычном dispatch. Для реальных HDR/sRGB/temporal материалов нужны отдельные решения.
+
+`/framescale upscale test` запускает небольшой явный self-test на текущем GPU Minecraft и проверяет пиксели в отдельной паре тестовых текстур: постоянный цвет, identity, контрастные края, альфа и нечётные размеры. Только в self-test выполняется синхронное чтение тестовых пикселей. Не трогает framebuffer игры, не меняет Iris, не запускается при активном Auto/профилировании или конфликтующем рендерере. `/framescale gpu` показывает наличие OpenGL 4.5. При отсутствии поддержки штатные функции сохраняются.
+
+GLSL проверяется независимо через EGL/Mesa: `LIBGL_ALWAYS_SOFTWARE=1 EGL_PLATFORM=surfaceless python3 tests/spatial_gl_check.py src/main/resources/assets/framescale/shaders/spatial.comp`. Тест не подтверждает Java state restoration, реальный RTX, производительность или качество в Minecraft. Бэкенд пока НЕ подключён к мировому кадру: сначала требуется проверить место интеграции, source/output формат и владение буферами с Iris/Sodium/GPUTape. Не добавляет фиктивный переключатель алгоритма. Действующий TAAU/Auto и меню Sodium сохранены. Сам тестовый kernel пока не увеличивает игровой FPS.
 
 ## 0.5.0 — Effect budgets
 

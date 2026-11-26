@@ -31,6 +31,11 @@ jobs:
           java -cp /tmp/framescale-tests by.xopilot.framescale.PassMetricsTest
           java -cp /tmp/framescale-tests by.xopilot.framescale.SamplingBudgetTest
           python3 -m unittest discover -s tests -p 'test_*.py'
+      - name: Software OpenGL shader execution
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libegl1 libgl1-mesa-dri
+          LIBGL_ALWAYS_SOFTWARE=1 EGL_PLATFORM=surfaceless python3 tests/spatial_gl_check.py src/main/resources/assets/framescale/shaders/spatial.comp
       - name: Compile mod
         run: gradle --no-daemon build
       - uses: actions/upload-artifact@v4

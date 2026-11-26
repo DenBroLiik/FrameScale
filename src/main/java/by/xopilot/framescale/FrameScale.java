@@ -121,6 +121,15 @@ public final class FrameScale {
             return message("Effects unavailable: "+e.getMessage());
         }
     }
+    private int spatialTest() {
+        if(!CompatPolicy.evaluate(CompatInventory.loaded()).gpuTimer()) return message("Spatial test blocked by renderer compatibility policy");
+        if(auto.enabled()||passes.running()||measuring) return message("Stop Auto and profilers before spatial test");
+        try { return message(SpatialSelfTest.run()); }
+        catch(java.io.IOException|RuntimeException|LinkageError e) {
+            LoggerFactory.getLogger("FrameScale").warn("Spatial self-test failed",e);
+            return message("Spatial self-test failed: "+e);
+        }
+    }
     private void commands(RegisterClientCommandsEvent event) {
         event.getDispatcher().register(Commands.literal("framescale")
             .executes(c->status())
@@ -129,6 +138,9 @@ public final class FrameScale {
                 .then(Commands.literal("export").executes(c->compatExport())))
             .then(Commands.literal("scale").then(Commands.argument("percent",IntegerArgumentType.integer(50,100)).executes(c->scale(IntegerArgumentType.getInteger(c,"percent")))))
             .then(Commands.literal("gpu").executes(c->{try { return message(GpuDiagnostics.report()); } catch(RuntimeException|LinkageError e) { return message("GPU diagnostics unavailable: "+e); }}))
+            .then(Commands.literal("upscale")
+                .executes(c->message("Photon TAAU active when selected; independent spatial backend is test-only. DLSS not implemented."))
+                .then(Commands.literal("test").executes(c->spatialTest())))
             .then(Commands.literal("auto")
                 .executes(c->message(auto.status()))
                 .then(Commands.literal("on").executes(c->message(enableAuto()?auto.status():"Auto unavailable: "+auto.status())))

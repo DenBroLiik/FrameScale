@@ -14,6 +14,7 @@ final class GpuDiagnostics {
             +" | version="+GL11.glGetString(GL11.GL_VERSION)
             +" | framebuffer="+win.getWidth()+"x"+win.getHeight()
             +" | timestamp="+c.OpenGL33
+            +" | spatial compute/DSA="+c.OpenGL45
             +" | memory_object="+c.GL_EXT_memory_object
             +" | memory_fd="+c.GL_EXT_memory_object_fd
             +" | memory_win32="+c.GL_EXT_memory_object_win32
