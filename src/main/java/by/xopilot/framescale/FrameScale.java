@@ -13,11 +13,13 @@ import java.util.Locale;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.neoforge.client.event.ScreenEvent;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.minecraft.client.gui.screens.Screen;
 
 @Mod(value="framescale", dist=Dist.CLIENT)
 public final class FrameScale {
     private static FrameScale instance;
+    private final SodiumAutoApply sodiumAutoApply=new SodiumAutoApply();
     private final FrameStats frames=new FrameStats(1800), gpu=new FrameStats(1800);
     private final GpuTimer timer=new GpuTimer();
     private boolean measuring, gpuAvailable, gpuFailed, gpuPermitted;
@@ -26,12 +28,17 @@ public final class FrameScale {
         instance=this;
         container.registerExtensionPoint(IConfigScreenFactory.class, (mod, parent) -> settings(parent));
         NeoForge.EVENT_BUS.addListener(this::screenInit);
+        NeoForge.EVENT_BUS.addListener(this::screenInitPre);
+        NeoForge.EVENT_BUS.addListener(this::clientTick);
         NeoForge.EVENT_BUS.addListener(this::commands);
         NeoForge.EVENT_BUS.addListener(this::pre);
         NeoForge.EVENT_BUS.addListener(this::post);
     }
     private Screen settings(Screen parent) { return createSettings(parent); }
     static Screen createSettings(Screen parent) { return new FrameScaleScreen(parent, ()->{ if(instance!=null) instance.stop(); }); }
+    static void stopActiveProfiler() { if(instance!=null) instance.stop(); }
+    private void screenInitPre(ScreenEvent.Init.Pre event) { sodiumAutoApply.init(event.getScreen()); }
+    private void clientTick(ClientTickEvent.Post event) { sodiumAutoApply.tick(); }
     private void screenInit(ScreenEvent.Init.Post event) { VideoSettingsEntry.add(event, this::settings); }
     private void pre(RenderFrameEvent.Pre ignored) {
         if (!measuring || Minecraft.getInstance().level==null) { lastFrame=0; return; }

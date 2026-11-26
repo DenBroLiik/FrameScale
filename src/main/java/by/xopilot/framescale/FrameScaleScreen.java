@@ -32,7 +32,7 @@ final class FrameScaleScreen extends Screen {
         toggle=null; slider=null;
         if(baseline!=null && height>=148) {
             toggle=addRenderableWidget(new FlatButton(x,y,w,20,toggleLabel(),b->{
-                enabled=!enabled; updateControls(); changed();
+                enabled=!enabled; updateControls(); if(slider!=null) slider.sync(); changed();
             }));
             slider=addRenderableWidget(new ScaleSlider(x,y+24,w,baseline.allowed()));
             int gap=3,pw=(w-3*gap)/4; int[] presets={100,85,75,67};
@@ -133,20 +133,12 @@ final class FrameScaleScreen extends Screen {
         void sync() { value=position(values,percent); updateMessage(); }
         @Override public void onClick(double mx,double my) { scheduler.beginDrag(); super.onClick(mx,my); }
         @Override public void onRelease(double mx,double my) { super.onRelease(mx,my); scheduler.endDrag(); }
-        @Override protected void updateMessage() { setMessage(Component.translatable("framescale.scale",percent)); }
+        @Override protected void updateMessage() { setMessage(Component.literal(NativeScaleOption.transition(enabled?percent:NativeScaleOption.OFF))); }
         @Override protected void applyValue() {
             int next=values.get((int)Math.round(value*(values.size()-1)));
             if(next!=percent) { percent=next; changed(); }
         }
-        @Override protected void renderWidget(GuiGraphics g,int mx,int my,float pt) {
-            int x=getX(),y=getY(),w=getWidth();
-            g.fill(x,y,x+w,y+20,isHoveredOrFocused()?HOVER:ROW);
-            int trackX=x+4,trackW=Math.max(1,w-8),handle=trackX+(int)Math.round(value*trackW);
-            g.fill(trackX,y+16,trackX+trackW,y+18,0xFF59636D);
-            g.fill(trackX,y+16,handle,y+18,GREEN);
-            g.fill(handle-2,y+14,handle+2,y+20,GREEN);
-            g.drawCenteredString(font,getMessage(),x+w/2,y+3,0xFFFFFF);
-        }
+
     }
     private static double position(List<Integer> values,int p) {
         return values.size()<=1?0:Math.max(0,values.indexOf(p))/(double)(values.size()-1);

@@ -21,10 +21,11 @@ jobs:
       - name: Unit tests
         run: |
           mkdir -p /tmp/framescale-tests
-          javac -d /tmp/framescale-tests src/main/java/by/xopilot/framescale/FrameStats.java src/main/java/by/xopilot/framescale/CompatPolicy.java tests/FrameStatsTest.java tests/CompatPolicyTest.java src/main/java/by/xopilot/framescale/ApplyScheduler.java tests/ApplySchedulerTest.java
+          javac -d /tmp/framescale-tests src/main/java/by/xopilot/framescale/FrameStats.java src/main/java/by/xopilot/framescale/CompatPolicy.java tests/FrameStatsTest.java tests/CompatPolicyTest.java src/main/java/by/xopilot/framescale/ApplyScheduler.java tests/ApplySchedulerTest.java src/main/java/by/xopilot/framescale/Resolution.java tests/ResolutionTest.java
           java -cp /tmp/framescale-tests FrameStatsTest
           java -cp /tmp/framescale-tests by.xopilot.framescale.CompatPolicyTest
           java -cp /tmp/framescale-tests by.xopilot.framescale.ApplySchedulerTest
+          java -cp /tmp/framescale-tests by.xopilot.framescale.ResolutionTest
           python3 -m unittest discover -s tests -p 'test_*.py'
       - name: Compile mod
         run: gradle --no-daemon build

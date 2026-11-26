@@ -7,5 +7,8 @@
   "framescale.ready": "Active: %s. Changes apply automatically.",
   "framescale.applied": "Settings applied.",
   "framescale.error": "Unavailable: %s",
-  "framescale.pending": "Finishing changes… shaders will reload automatically."
+  "framescale.pending": "Finishing changes… shaders will reload automatically.",
+  "framescale.native.scale": "Render scale",
+  "framescale.native.off": "Off (%s)",
+  "framescale.native.tooltip": "Photon TAAU: %s%%\\n%s\\nEstimated internal → output resolution. Auto-applies after slider release on Sodium 0.8.13; shader reload required."
 }
