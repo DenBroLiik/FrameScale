@@ -16,5 +16,18 @@
   "framescale.auto.target": "Target FPS",
   "framescale.auto.target.tip": "Target frame rate in auto mode. Default: 80. Consider VSync and FPS caps.",
   "framescale.auto.floor": "Minimum render scale",
-  "framescale.auto.floor.tip": "Auto will not reduce scale below this limit. Default: 75%. Lower values may lose detail."
+  "framescale.auto.floor.tip": "Auto will not reduce scale below this limit. Default: 75%. Lower values may lose detail.",
+  "framescale.effects.name": "Effect budget",
+  "framescale.effects.original": "Original",
+  "framescale.effects.shadows": "Shadows",
+  "framescale.effects.clouds": "Clouds",
+  "framescale.effects.reflections": "Reflections",
+  "framescale.effects.volumetrics": "Volumetrics",
+  "framescale.effects.balanced": "Balanced",
+  "framescale.effects.tip.original": "Restore original effect values for this session; does not reset the shader pack.",
+  "framescale.effects.tip.shadows": "Reduce shadow map to a declared value, not below 1536; preserve distance and filtering.",
+  "framescale.effects.tip.clouds": "Reduce cloud raymarch steps moderately. Image detail may change.",
+  "framescale.effects.tip.reflections": "Reduce SSR rays and steps. Reflections may change.",
+  "framescale.effects.tip.volumetrics": "Reduce light shaft and LPV steps when available.",
+  "framescale.effects.tip.balanced": "Clouds, SSR and volumetrics; preserve shadow map and render scale."
 }

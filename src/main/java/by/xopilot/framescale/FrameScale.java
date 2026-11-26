@@ -1,6 +1,7 @@
 package by.xopilot.framescale;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -112,6 +113,14 @@ public final class FrameScale {
         try { return message("Saved: "+passes.export(Minecraft.getInstance().gameDirectory.toPath())); }
         catch(java.io.IOException|RuntimeException e) { return message("Export failed: "+e.getMessage()); }
     }
+    private int effectCommand(String name,boolean preview) {
+        try {
+            var preset=EffectControls.parse(name);
+            return message(preview?EffectControls.preview(preset):EffectControls.apply(preset));
+        } catch(ReflectiveOperationException|RuntimeException|LinkageError e) {
+            return message("Effects unavailable: "+e.getMessage());
+        }
+    }
     private void commands(RegisterClientCommandsEvent event) {
         event.getDispatcher().register(Commands.literal("framescale")
             .executes(c->status())
@@ -126,6 +135,16 @@ public final class FrameScale {
                 .then(Commands.literal("off").executes(c->{disableAuto();return message(auto.status());}))
                 .then(Commands.literal("target").then(Commands.argument("fps",IntegerArgumentType.integer(30,240)).executes(c->{autoTarget(IntegerArgumentType.getInteger(c,"fps"));return message(auto.status());})))
                 .then(Commands.literal("floor").then(Commands.argument("percent",IntegerArgumentType.integer(50,100)).executes(c->{autoFloor(IntegerArgumentType.getInteger(c,"percent"));return message(auto.status());}))))
+            .then(Commands.literal("effects")
+                .executes(c->message(EffectControls.status()))
+                .then(Commands.literal("preview").then(Commands.argument("preset",StringArgumentType.word())
+                    .suggests((c,b)->{ for(var v:SamplingBudget.Preset.values()) b.suggest(v.name().toLowerCase(Locale.ROOT));return b.buildFuture(); })
+                    .executes(c->effectCommand(StringArgumentType.getString(c,"preset"),true))))
+                .then(Commands.literal("apply").then(Commands.argument("preset",StringArgumentType.word())
+                    .suggests((c,b)->{ for(var v:SamplingBudget.Preset.values()) b.suggest(v.name().toLowerCase(Locale.ROOT));return b.buildFuture(); })
+                    .executes(c->effectCommand(StringArgumentType.getString(c,"preset"),false))))
+                .then(Commands.literal("restore").executes(c->effectCommand("original",false)))
+                .then(Commands.literal("forget").executes(c->{EffectControls.forget();return message("Effect baseline forgotten; current shader values unchanged");})))
             .then(Commands.literal("passes")
                 .then(Commands.literal("start").executes(c->startPasses(240))
                     .then(Commands.argument("frames",IntegerArgumentType.integer(60,1200)).executes(c->startPasses(IntegerArgumentType.getInteger(c,"frames")))))

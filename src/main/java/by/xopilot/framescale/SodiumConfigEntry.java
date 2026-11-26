@@ -10,6 +10,7 @@ public final class SodiumConfigEntry implements ConfigEntryPoint {
     static final ResourceLocation ID=ResourceLocation.fromNamespaceAndPath("framescale","render_scale");
     static final ResourceLocation TARGET=ResourceLocation.fromNamespaceAndPath("framescale","target_fps");
     static final ResourceLocation FLOOR=ResourceLocation.fromNamespaceAndPath("framescale","quality_floor");
+    static final ResourceLocation EFFECTS=ResourceLocation.fromNamespaceAndPath("framescale","effect_budget");
     @Override public void registerConfigLate(ConfigBuilder builder) {
         var slider=builder.createIntegerOption(ID)
             .setName(Component.translatable("framescale.native.scale"))
@@ -32,8 +33,16 @@ public final class SodiumConfigEntry implements ConfigEntryPoint {
             .setStorageHandler(()->{}).setDefaultValue(AutoQuality.DEFAULT_FLOOR)
             .setRange(50,100,1).setBinding(FrameScale::autoFloor,FrameScale::autoFloor)
             .setValueFormatter(v->Component.literal(v+"%"));
+        var effects=builder.createIntegerOption(EFFECTS)
+            .setName(Component.translatable("framescale.effects.name"))
+            .setTooltip(EffectControls::tooltip)
+            .setStorageHandler(()->{}).setDefaultValue(0)
+            .setRange(0,SamplingBudget.Preset.values().length-1,1)
+            .setBinding(EffectControls::save,EffectControls::load)
+            .setValueFormatter(EffectControls::format)
+            .setEnabledProvider(state->EffectControls.available(),ConfigState.UPDATE_ON_REBUILD);
         builder.registerOwnModOptions().addPage(builder.createOptionPage()
             .setName(Component.literal("FrameScale"))
-            .addOption(slider).addOption(target).addOption(floor));
+            .addOption(slider).addOption(target).addOption(floor).addOption(effects));
     }
 }

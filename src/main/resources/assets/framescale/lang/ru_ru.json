@@ -16,5 +16,18 @@
   "framescale.auto.target": "Целевой FPS",
   "framescale.auto.target.tip": "Целевая частота кадров в автоматическом режиме. По умолчанию 80. Учитывайте лимит FPS и VSync.",
   "framescale.auto.floor": "Минимальный масштаб",
-  "framescale.auto.floor.tip": "Авто не снижает масштаб ниже этого значения. По умолчанию 75%. Меньшее значение увеличивает риск потери деталей."
+  "framescale.auto.floor.tip": "Авто не снижает масштаб ниже этого значения. По умолчанию 75%. Меньшее значение увеличивает риск потери деталей.",
+  "framescale.effects.name": "Бюджет эффектов",
+  "framescale.effects.original": "Исходный",
+  "framescale.effects.shadows": "Тени",
+  "framescale.effects.clouds": "Облака",
+  "framescale.effects.reflections": "Отражения",
+  "framescale.effects.volumetrics": "Объёмный свет",
+  "framescale.effects.balanced": "Сбалансированный",
+  "framescale.effects.tip.original": "Возвращает сохранённые в текущем сеансе исходные параметры. Не сбрасывает весь Photon.",
+  "framescale.effects.tip.shadows": "Уменьшает карту теней до ближайшего допустимого значения, не ниже 1536. Дальность и фильтрация не меняются.",
+  "framescale.effects.tip.clouds": "Умеренно снижает число шагов трассировки облаков. Возможны отличия детализации.",
+  "framescale.effects.tip.reflections": "Уменьшает число лучей и шагов SSR. Возможны отличия отражений.",
+  "framescale.effects.tip.volumetrics": "Уменьшает число шагов световых лучей и LPV, если доступно.",
+  "framescale.effects.tip.balanced": "Облака, SSR и объёмный свет; карта теней и масштаб рендера остаются прежними."
 }

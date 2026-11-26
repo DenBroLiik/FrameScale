@@ -79,6 +79,50 @@ final class PhotonBridge {
         if (!options.containsKey(scale)) throw new IllegalStateException("Current scale not in declared values");
         return new Settings(s.name,bool(s,TAA),bool(s,TAAU),scale,List.copyOf(options.keySet()));
     }
+    static EffectSession.Snapshot readEffects() throws ReflectiveOperationException {
+        return effects(state());
+    }
+    private static EffectSession.Snapshot effects(State s) throws ReflectiveOperationException {
+        var result=new TreeMap<String,SamplingBudget.Option>();
+        for(String key:SamplingBudget.keys()) {
+            if(!s.strings.containsKey(key)) continue;
+            Object raw=invoke(option(s.strings,key),"getAllowedValues");
+            if(!(raw instanceof Collection<?> list)) continue;
+            var allowed=new java.util.ArrayList<String>();
+            for(Object v:list) if(v instanceof String text) allowed.add(text);
+            String actual=str(s,key);
+            if(allowed.contains(actual)) result.put(key,new SamplingBudget.Option(actual,allowed));
+        }
+        return new EffectSession.Snapshot(s.name,result);
+    }
+    @SuppressWarnings("unchecked")
+    static EffectSession.Snapshot applyEffects(EffectSession.Change change) throws ReflectiveOperationException {
+        State s=state();
+        var before=effects(s);
+        if(!before.equals(change.expected())) throw new IllegalStateException("Photon effect options changed");
+        var diff=SamplingBudget.changes(before.values(),change.desired());
+        for(var e:diff.entrySet())
+            if(!before.options().get(e.getKey()).allowed().contains(e.getValue()))
+                throw new IllegalArgumentException("Unsupported effect option: "+e.getKey());
+        if(diff.isEmpty()) return before;
+        Map<String,String> queue=(Map<String,String>)call(s.iris,"getShaderPackOptionQueue");
+        if(!queue.isEmpty()||Boolean.TRUE.equals(call(s.iris,"shouldResetShaderPackOptionsOnNextReload")))
+            throw new IllegalStateException("Finish pending Iris changes first");
+        var reload=s.iris.getMethod("reload");
+        try {
+            queue.putAll(diff);
+            reload.invoke(null);
+        } catch(InvocationTargetException e) {
+            throw new IllegalStateException("Iris reload failed; inspect shader settings",e.getCause());
+        } finally {
+            diff.keySet().forEach(queue::remove);
+        }
+        if(Boolean.TRUE.equals(call(s.iris,"isFallback"))) throw new IllegalStateException("Iris entered fallback after reload");
+        var actual=effects(state());
+        if(!before.pack().equals(actual.pack())||!actual.values().equals(change.desired()))
+            throw new IllegalStateException("Iris did not confirm requested effect values");
+        return actual;
+    }
     static Settings read() throws ReflectiveOperationException { return read(state()); }
     static String status() throws ReflectiveOperationException {
         Settings s=read(); return s.pack()+" | TAA: "+s.taa()+" | TAAU: "+s.enabled()+" | "+s.percent()+"%";
