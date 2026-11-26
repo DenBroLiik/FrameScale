@@ -50,10 +50,20 @@ jobs:
           elif [ "$rc" != 0 ]; then
             exit "$rc"
           fi
+      - name: Build optional JNI bridge and test ABI
+        run: |
+          sh native/jni/build.sh
+          java -cp build/native/classes by.xopilot.framescale.NativeBridgeTest missing
+          java -Dframescale.native.path="$PWD/build/native/libframescale_native.so" -cp build/native/classes by.xopilot.framescale.NativeBridgeTest loaded
       - name: Compile mod
         run: gradle --no-daemon build
       - uses: actions/upload-artifact@v4
         with:
           name: FrameScale-neoforge-1.21.1
           path: build/libs/*.jar
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FrameScale-native-linux-x86_64
+          path: build/native/libframescale_native.so
           if-no-files-found: error

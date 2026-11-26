@@ -1,6 +1,10 @@
-# FrameScale 0.6.0-alpha.6
+# FrameScale 0.6.0-alpha.7
 
 Экспериментальный client-side мод Minecraft 1.21.1 / NeoForge / Java 21. Использует штатный временной апскейлер Photon (не NVIDIA DLSS). Не содержит нативных библиотек и не меняет рендер до явной команды игрока. Iris используется через проверяемую рефлексию; API не гарантирован, при несовместимости команда сообщает об ошибке.
+
+## 0.6.0-alpha.7 — Optional JNI diagnostic bridge
+
+Linux x86_64 native library, explicit trusted local path and ABI check. No native loading at startup; /framescale native probe captures device/driver UUID from the game's GL context and probes matching Vulkan physical-device external FD format capabilities on a worker. /framescale native reports status. RGBA8, HDR RGBA16F, R32F depth-copy and RG16F motion format queries, not actual shared allocation or DLSS. CI builds and tests JNI argument validation, ABI and missing-library handling; separate optional native artifact. See native/jni/README.md. No game renderer changes. Actual NVIDIA interop and active Photon input capture remain unverified/unimplemented.
 
 ## 0.6.0-alpha.6 — Shared resource lifecycle
 
