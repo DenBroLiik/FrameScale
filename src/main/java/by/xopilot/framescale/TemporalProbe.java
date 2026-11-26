@@ -9,7 +9,11 @@ import java.nio.charset.StandardCharsets;
 /** One-shot private-output diagnostic. Never replaces the Iris draw or feeds NGX. */
 final class TemporalProbe {
     private static final int[] FORMATS={0x881a,0x822e,0x822f,0x8232};
-    private static int start,end;
+    private static int start,end,program,width,height;
+    private static final int[] outputs=new int[4];
+    private static final FrameStats samples=new FrameStats(120);
+    static void resetSamples(){samples.clear();}
+    static void release(){cleanup();for(int i=0;i<4;i++){if(outputs[i]!=0)GL11.glDeleteTextures(outputs[i]);outputs[i]=0;}if(program!=0)GL20.glDeleteProgram(program);program=width=height=0;}
     private static long deadline;
     private static String status="Not run";
     static String status(){return status;}
@@ -20,7 +24,9 @@ final class TemporalProbe {
             if(GL15.glGetQueryObjecti(end,GL15.GL_QUERY_RESULT_AVAILABLE)!=0
                 &&GL15.glGetQueryObjecti(start,GL15.GL_QUERY_RESULT_AVAILABLE)!=0){
                 long ns=GL33.glGetQueryObjectui64(end,GL15.GL_QUERY_RESULT)-GL33.glGetQueryObjectui64(start,GL15.GL_QUERY_RESULT);
-                status=String.format(java.util.Locale.ROOT,"Diagnostic GPU interval %.3f ms; identity motion, no DLSS",ns/1e6);
+                if(ns>=0)samples.add(ns/1e6);
+                var snap=samples.snapshot();
+                status=String.format(java.util.Locale.ROOT,"%d samples | mean %.3f ms | p95 %.3f ms | identity motion, no DLSS",snap.count(),snap.meanMs(),snap.p95Ms());
                 cleanup();
             }else if(System.nanoTime()-deadline>=0){status="GPU timing expired";cleanup();}
         }catch(RuntimeException|LinkageError e){status="Timing unavailable";cleanup();}
@@ -66,21 +72,23 @@ final class TemporalProbe {
                 throw new IllegalArgumentException("Explicit crop outside source");
         int cu=samplerUnit(irisProgram,"colortex0",color),du=samplerUnit(irisProgram,"depthtex0",depth);
         if(cu==du)throw new IllegalStateException("Aliased sampler units");
-        int shader=0,program=0;
-        int[] outputs=new int[4];Binding[] saved=new Binding[4];
+        int shader=0;Binding[] saved=new Binding[4];
         for(int i=0;i<4;i++)saved[i]=Binding.read(i);
-        try(var in=TemporalProbe.class.getResourceAsStream("/assets/framescale/shaders/temporal_inputs.comp")){
+        try {
+            if(width!=w||height!=h){release();width=w;height=h;}
+            if(program==0)try(var in=TemporalProbe.class.getResourceAsStream("/assets/framescale/shaders/temporal_inputs.comp")){
             if(in==null)throw new IOException("Missing temporal shader");
             shader=GL20.glCreateShader(GL43.GL_COMPUTE_SHADER);
             GL20.glShaderSource(shader,new String(in.readAllBytes(),StandardCharsets.UTF_8));GL20.glCompileShader(shader);
             if(GL20.glGetShaderi(shader,GL20.GL_COMPILE_STATUS)==0)throw new IllegalStateException(GL20.glGetShaderInfoLog(shader));
             program=GL20.glCreateProgram();GL20.glAttachShader(program,shader);GL20.glLinkProgram(program);
             if(GL20.glGetProgrami(program,GL20.GL_LINK_STATUS)==0)throw new IllegalStateException(GL20.glGetProgramInfoLog(program));
+            }
             for(int i=0;i<4;i++){
-                outputs[i]=GL45.glCreateTextures(GL11.GL_TEXTURE_2D);
+                if(outputs[i]==0){outputs[i]=GL45.glCreateTextures(GL11.GL_TEXTURE_2D);
                 GL45.glTextureStorage2D(outputs[i],1,FORMATS[i],w,h);
                 if(outputs[i]==0||GL45.glGetTextureLevelParameteri(outputs[i],0,GL11.GL_TEXTURE_WIDTH)!=w)
-                    throw new IllegalStateException("Output allocation failed");
+                    throw new IllegalStateException("Output allocation failed");}
                 GL42.glBindImageTexture(i,outputs[i],0,false,0,GL15.GL_WRITE_ONLY,FORMATS[i]);
                 if(GL30.glGetIntegeri(GL42.GL_IMAGE_BINDING_NAME,i)!=outputs[i])throw new IllegalStateException("Image binding failed");
             }
@@ -107,12 +115,11 @@ final class TemporalProbe {
             deadline=System.nanoTime()+5_000_000_000L;
             status="Dispatched "+w+"x"+h+" private outputs; timing pending; identity motion";
             return status;
-        }catch(IOException|RuntimeException|LinkageError e){cleanup();status="Diagnostic rejected";throw e;}
+        }catch(IOException|RuntimeException|LinkageError e){status="Diagnostic rejected";throw e;}
         finally{
             for(int i=3;i>=0;i--)saved[i].restore(i);
             GL20.glUseProgram(irisProgram);
-            for(int t:outputs)if(t!=0)GL11.glDeleteTextures(t);
-            if(program!=0)GL20.glDeleteProgram(program);
+            if(status.equals("Diagnostic rejected"))release();
             if(shader!=0)GL20.glDeleteShader(shader);
         }
     }

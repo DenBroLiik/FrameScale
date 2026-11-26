@@ -18,3 +18,7 @@ Caller supplies verified crop, nonaliasing textures, unjittered current-to-previ
 ## In-game diagnostic alpha.3
 
 `/framescale capture gpu WIDTH HEIGHT` arms one compute dispatch on the candidate pass. Supply a known valid lower-left crop; allocation bounds do not prove the active render region. Sampler IDs must match expected Iris textures; compare mode must be disabled. Private temporary textures (estimated maximum 128 MiB) are discarded after dispatch; no retained buffers or pixel readback. Identity transform/zero jitter intentionally avoid claiming unverified camera semantics. `/framescale capture gpu` polls the last reported GPU interval (tick-driven). Timing excludes shader compilation/allocation, includes post-dispatch barrier. No image output verification in game, no performance improvement claimed. Existing TAAU draw continues. Runtime testing required.
+
+## Cached diagnostic series (alpha.4)
+
+`/framescale capture series WIDTH HEIGHT COUNT` (1–120) reuses four private output textures and the compiled compute program for up to 30 seconds. The next dispatch waits for timestamp availability by skipping candidate draws, not CPU blocking. The final query is polled on ticks, then resources are released. `/framescale capture gpu` reports completed samples, mean and p95; `/framescale capture stop` cancels and releases. No retained Iris handles, automatic crop, real camera motion or NGX. A timed-out series can contain fewer samples; check the reported count. Runtime test required.
