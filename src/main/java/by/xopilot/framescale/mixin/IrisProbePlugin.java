@@ -12,10 +12,26 @@ import java.util.Set;
 /** Probe the optional Iris class without loading it. Never applies on an unknown pipeline shape. */
 public final class IrisProbePlugin implements IMixinConfigPlugin {
     public static volatile boolean accepted;
+    public static volatile boolean captureAccepted;
+    private static final String COMPOSITE="net.irisshaders.iris.pipeline.CompositeRenderer";
     private static final String TARGET="net.irisshaders.iris.pipeline.IrisRenderingPipeline";
     @Override public void onLoad(String mixinPackage) {}
     @Override public String getRefMapperConfig() { return null; }
     @Override public boolean shouldApplyMixin(String target,String mixin) {
+        if(COMPOSITE.equals(target)&&mixin.endsWith(".PhotonCaptureMixin")) {
+            try {
+                var node=MixinService.getService().getBytecodeProvider().getClassNode(target);
+                var method=find(node,"renderAll","()V");
+                if(method==null||!singleCall(method,"net/irisshaders/iris/pathways/FullScreenQuadRenderer","renderQuad")) return false;
+                boolean passes=node.fields.stream().anyMatch(f->f.name.equals("passes")&&f.desc.equals("Lcom/google/common/collect/ImmutableList;"));
+                boolean targets=node.fields.stream().anyMatch(f->f.name.equals("renderTargets")&&f.desc.equals("Lnet/irisshaders/iris/targets/RenderTargets;"));
+                if(!passes||!targets) return false;
+                var pass=MixinService.getService().getBytecodeProvider().getClassNode(COMPOSITE+"$Pass");
+                for(String name:List.of("name","program","stageReadsFromAlt","drawBuffers"))
+                    if(pass.fields.stream().noneMatch(f->f.name.equals(name))) return false;
+                captureAccepted=true;return true;
+            } catch(Exception|LinkageError e) { return false; }
+        }
         if(!TARGET.equals(target)) return false;
         try {
             var node=MixinService.getService().getBytecodeProvider().getClassNode(target);

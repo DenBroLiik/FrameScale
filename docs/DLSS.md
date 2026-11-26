@@ -2,6 +2,10 @@
 
 FrameScale uses Photon TAAU, not DLSS. No fake DLSS switch is exposed. Native Linux DLSS Super Resolution requires an NVIDIA-supported Vulkan/NGX implementation; Minecraft 1.21.1 Iris renders using OpenGL. No replacement of GPUTape/Sodium/Iris or forced VulkanMod migration is acceptable.
 
+## Progress in 0.8.0-alpha.1
+
+Read-only opt-in Iris composite4 candidate observer identifies pre-temporal color/depth metadata and active camera/jitter uniforms. Photon upstream uses packed R11G11B10F HDR rather than RGBA16F and a reduced render rectangle inside full-sized textures. Actual conversion, depth/velocity extraction, jitter semantics, pack fingerprint and runtime validation still required. No DLSS activation.
+
 ## Progress in 0.7.0-alpha.9
 
 Local Rust frame pipeline owns four images per slot and a readback buffer; nonblocking scheduler executes synthetic HDR clear/blit/copy and retains output until verification and release. No actual temporal reconstruction or GL producer/consumer handshake. Hardware and SDK validation still required.

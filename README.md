@@ -1,6 +1,10 @@
-# FrameScale 0.7.0-alpha.9
+# FrameScale 0.8.0-alpha.1
 
 Экспериментальный client-side мод Minecraft 1.21.1 / NeoForge / Java 21. Использует штатный временной апскейлер Photon (не NVIDIA DLSS). Не содержит нативных библиотек и не меняет рендер до явной команды игрока. Iris используется через проверяемую рефлексию; API не гарантирован, при несовместимости команда сообщает об ошибке.
+
+## 0.8.0-alpha.1 — Photon pre-temporal metadata observer
+
+Opt-in /framescale capture start observes a candidate composite4 pass before its draw, after program/uniform binding. Checks Iris bytecode shape, actual GL program, expected output targets [0,5], colortex0 ping-pong selection and candidate depth texture metadata. Queries available camera/previous matrices, camera positions, raw taa_offset and view_res from active uniforms. /framescale capture report and uniforms show last metadata; stop cancels. No texture data copies, GL binding changes, retained texture handles, shader modifications, or DLSS. TAAU percent is a setting, not proof of the actual active render rectangle; raw jitter is not converted to NGX units. Pack name/pass signature is a heuristic, not a shader source hash. Exact installed pack and runtime hook are unverified. See docs/PHOTON_CAPTURE.md.
 
 ## 0.7.0-alpha.9 — Local HDR image pipeline
 

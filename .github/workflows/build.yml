@@ -31,6 +31,8 @@ jobs:
           java -cp /tmp/framescale-tests by.xopilot.framescale.PassMetricsTest
           java -cp /tmp/framescale-tests by.xopilot.framescale.SamplingBudgetTest
           java -cp /tmp/framescale-tests by.xopilot.framescale.SpatialPolicyTest
+          javac -d /tmp/framescale-tests src/main/java/by/xopilot/framescale/PhotonCaptureContract.java tests/PhotonCaptureContractTest.java
+          java -cp /tmp/framescale-tests by.xopilot.framescale.PhotonCaptureContractTest
           python3 -m unittest discover -s tests -p 'test_*.py'
       - name: Software OpenGL shader execution
         run: |

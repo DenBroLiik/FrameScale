@@ -5,7 +5,8 @@
   "compatibilityLevel": "JAVA_21",
   "plugin": "by.xopilot.framescale.mixin.IrisProbePlugin",
   "client": [
-    "IrisPipelineMixin"
+    "IrisPipelineMixin",
+    "PhotonCaptureMixin"
   ],
   "injectors": {
     "defaultRequire": 0

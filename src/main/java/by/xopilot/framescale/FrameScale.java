@@ -62,7 +62,7 @@ public final class FrameScale {
     static String autoStatus() { return instance==null?"Off":instance.auto.status(); }
     private void chunkLoad(ChunkEvent.Load event) { if(event.getLevel().isClientSide()) auto.chunkLoaded(); }
     private void screenInitPre(ScreenEvent.Init.Pre event) { sodiumAutoApply.init(event.getScreen()); }
-    private void clientTick(ClientTickEvent.Post event) { sodiumAutoApply.tick(); auto.tick(); SpatialWorld.tick(); }
+    private void clientTick(ClientTickEvent.Post event) { sodiumAutoApply.tick(); auto.tick(); SpatialWorld.tick(); PhotonCapture.tick(); }
     private void screenInit(ScreenEvent.Init.Post event) { VideoSettingsEntry.add(event, this::settings); }
     private void pre(RenderFrameEvent.Pre ignored) {
         passes.pre();
@@ -141,6 +141,12 @@ public final class FrameScale {
             .then(Commands.literal("native")
                 .executes(c->message(NativeInteropDiagnostic.status()))
                 .then(Commands.literal("probe").executes(c->message(NativeInteropDiagnostic.start(s->message(s))))))
+            .then(Commands.literal("capture")
+                .executes(c->message(PhotonCapture.report()))
+                .then(Commands.literal("start").executes(c->message(PhotonCapture.start(s->message(s)))))
+                .then(Commands.literal("report").executes(c->message(PhotonCapture.report())))
+                .then(Commands.literal("uniforms").executes(c->message(PhotonCapture.uniformReport())))
+                .then(Commands.literal("stop").executes(c->message(PhotonCapture.stop()))))
             .then(Commands.literal("upscale")
                 .executes(c->message(SpatialWorld.status()))
                 .then(Commands.literal("test").executes(c->spatialTest()))
