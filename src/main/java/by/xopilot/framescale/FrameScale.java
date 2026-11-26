@@ -10,6 +10,9 @@ import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent;
 import net.neoforged.neoforge.client.event.RenderFrameEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import java.util.Locale;
+import java.nio.file.Path;
+import net.neoforged.fml.loading.FMLPaths;
+import org.slf4j.LoggerFactory;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.neoforge.client.event.ScreenEvent;
@@ -20,6 +23,7 @@ import net.neoforged.neoforge.event.level.ChunkEvent;
 @Mod(value="framescale", dist=Dist.CLIENT)
 public final class FrameScale {
     private static FrameScale instance;
+    private final Path prefsPath=FMLPaths.CONFIGDIR.get().resolve("framescale.properties");
     private final SodiumAutoApply sodiumAutoApply=new SodiumAutoApply();
     private final AutoQuality auto=new AutoQuality(s->message(s));
     private final FrameStats frames=new FrameStats(1800), gpu=new FrameStats(1800);
@@ -28,6 +32,8 @@ public final class FrameScale {
     private long lastFrame;
     public FrameScale(ModContainer container) {
         instance=this;
+        try { var prefs=AutoPreferences.load(prefsPath); auto.target(prefs.target()); auto.floor(prefs.floor()); }
+        catch(java.io.IOException|RuntimeException e) { LoggerFactory.getLogger("FrameScale").warn("Cannot read FrameScale preferences; defaults used",e); }
         container.registerExtensionPoint(IConfigScreenFactory.class, (mod, parent) -> settings(parent));
         NeoForge.EVENT_BUS.addListener(this::screenInit);
         NeoForge.EVENT_BUS.addListener(this::screenInitPre);
@@ -45,8 +51,12 @@ public final class FrameScale {
     static void disableAuto() { if(instance!=null&&instance.auto.enabled()) instance.auto.disable("Manual mode"); }
     static int autoTarget() { return instance==null?AutoQuality.DEFAULT_TARGET:instance.auto.target(); }
     static int autoFloor() { return instance==null?AutoQuality.DEFAULT_FLOOR:instance.auto.floor(); }
-    static void autoTarget(int value) { if(instance!=null) instance.auto.target(value); }
-    static void autoFloor(int value) { if(instance!=null) instance.auto.floor(value); }
+    static void autoTarget(int value) { if(instance!=null&&instance.auto.target()!=value) { instance.auto.target(value); instance.savePreferences(); } }
+    static void autoFloor(int value) { if(instance!=null&&instance.auto.floor()!=value) { instance.auto.floor(value); instance.savePreferences(); } }
+    private void savePreferences() {
+        try { new AutoPreferences(auto.target(),auto.floor()).save(prefsPath); }
+        catch(java.io.IOException|RuntimeException e) { LoggerFactory.getLogger("FrameScale").warn("Cannot save FrameScale preferences",e); message("Could not save Auto preferences; check log"); }
+    }
     static String autoStatus() { return instance==null?"Off":instance.auto.status(); }
     private void chunkLoad(ChunkEvent.Load event) { if(event.getLevel().isClientSide()) auto.chunkLoaded(); }
     private void screenInitPre(ScreenEvent.Init.Pre event) { sodiumAutoApply.init(event.getScreen()); }
@@ -70,7 +80,8 @@ public final class FrameScale {
     private void stop() { measuring=false; lastFrame=0; try { timer.close(); } catch (RuntimeException | LinkageError e) { gpuAvailable=false; } }
     private void start() { disableAuto(); stop(); frames.clear(); gpu.clear(); gpuAvailable=false; gpuFailed=false; gpuPermitted=CompatPolicy.evaluate(CompatInventory.loaded()).gpuTimer(); measuring=true; }
     private int message(String s) {
-        Minecraft.getInstance().gui.getChat().addMessage(Component.literal("[FrameScale] "+s)); return 1;
+        var gui=Minecraft.getInstance().gui;
+        if(gui!=null) gui.getChat().addMessage(Component.literal("[FrameScale] "+s)); return 1;
     }
     private int report() {
         var f=frames.snapshot(); var g=gpu.snapshot();
@@ -97,12 +108,13 @@ public final class FrameScale {
             .then(Commands.literal("compat").executes(c->message(CompatInventory.summary(CompatInventory.loaded())))
                 .then(Commands.literal("export").executes(c->compatExport())))
             .then(Commands.literal("scale").then(Commands.argument("percent",IntegerArgumentType.integer(50,100)).executes(c->scale(IntegerArgumentType.getInteger(c,"percent")))))
+            .then(Commands.literal("gpu").executes(c->{try { return message(GpuDiagnostics.report()); } catch(RuntimeException|LinkageError e) { return message("GPU diagnostics unavailable: "+e); }}))
             .then(Commands.literal("auto")
                 .executes(c->message(auto.status()))
                 .then(Commands.literal("on").executes(c->message(enableAuto()?auto.status():"Auto unavailable: "+auto.status())))
                 .then(Commands.literal("off").executes(c->{disableAuto();return message(auto.status());}))
-                .then(Commands.literal("target").then(Commands.argument("fps",IntegerArgumentType.integer(30,240)).executes(c->{auto.target(IntegerArgumentType.getInteger(c,"fps"));return message(auto.status());})))
-                .then(Commands.literal("floor").then(Commands.argument("percent",IntegerArgumentType.integer(50,100)).executes(c->{auto.floor(IntegerArgumentType.getInteger(c,"percent"));return message(auto.status());}))))
+                .then(Commands.literal("target").then(Commands.argument("fps",IntegerArgumentType.integer(30,240)).executes(c->{autoTarget(IntegerArgumentType.getInteger(c,"fps"));return message(auto.status());})))
+                .then(Commands.literal("floor").then(Commands.argument("percent",IntegerArgumentType.integer(50,100)).executes(c->{autoFloor(IntegerArgumentType.getInteger(c,"percent"));return message(auto.status());}))))
             .then(Commands.literal("bench")
                 .then(Commands.literal("start").executes(c->{start();return message("Measuring; close chat and keep scene consistent.");}))
                 .then(Commands.literal("report").executes(c->report()))

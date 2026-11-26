@@ -1,10 +1,18 @@
-# FrameScale 0.3.0
+# FrameScale 0.3.1
 
 Экспериментальный client-side мод Minecraft 1.21.1 / NeoForge / Java 21. Использует штатный временной апскейлер Photon (не NVIDIA DLSS). Не содержит нативных библиотек и не меняет рендер до явной команды игрока. Iris используется через проверяемую рефлексию; API не гарантирован, при несовместимости команда сообщает об ошибке.
 
+## 0.3.1 — Auto safety
+
+- Сравнение замеров учитывает позицию и направление камеры (8 блоков, 35° yaw, 25° pitch). При движении за пределы допуска и загрузке чанков измерения сбрасываются.
+- Понижение масштаба остаётся пробным до двух последовательных стабильных окон с измеренным улучшением. Если сцена изменилась или два окна не подтвердили пользу, предыдущее качество восстанавливается после cooldown и стабильного игрового состояния. Ручное выключение Auto оставляет текущий масштаб; при смене мира Auto останавливается без автоматической перезаписи чужого состояния.
+- Целевой FPS и нижний предел сохраняются в config/framescale.properties атомарной заменой файла; сам Auto по-прежнему включается явно после запуска игры.
+- /framescale gpu — реальные GL vendor, renderer, версия, framebuffer и расширения memory object / semaphore для оценки возможности GL/Vulkan interop. Это только диагностический отчёт: Vulkan/NGX не инициализируются и DLSS отсутствует.
+- Проверки политики и сохранения настроек входят в CI. Реальный запуск в модпаке ещё требуется.
+
 ## 0.3.0 — Auto quality
 
-Native Sodium page: choose Auto at the left end of Render Scale, or `/framescale auto on`. Target defaults to 80 FPS and minimum downward scale to 75%; change both using native sliders or `/framescale auto target 80`, `/framescale auto floor 75`. `/framescale auto` shows status; `/framescale auto off` stops adaptation and keeps the current scale. Auto and these preferences are session-only in this version; Photon persists the last applied shader scale. Manual scale and manual benchmark stop Auto.
+Native Sodium page: choose Auto at the left end of Render Scale, or `/framescale auto on`. Target defaults to 80 FPS and minimum downward scale to 75%; change both using native sliders or `/framescale auto target 80`, `/framescale auto floor 75`. `/framescale auto` shows status; `/framescale auto off` stops adaptation and keeps the current scale. Auto is session-only; since 0.3.1 target and floor persist, and Photon persists the last applied shader scale. Manual scale and manual benchmark stop Auto.
 
 The governor waits for focused gameplay, a 10-second warmup after menus/resizes/world changes/reload and chunk bursts (4+ client chunk-load events per second). Six-second windows use median, p90 and outlier fraction; unstable windows are discarded. It requires three sustained slow GPU-heavy windows to reduce by at most five percentage points and four headroom windows to increase quality. Lowering is bounded by the floor; if a manually chosen starting scale is already lower, Auto will not lower it further. GL timestamps are a heuristic, not definitive GPU-utilization measurements. No GPU timing means no automatic scale changes. VSync or FPS limits below the target can prevent adaptation. Only one reload per 60 seconds and at most six per activation, including rollback; a reduction without measured gain in a comparable area can restore prior TAA/TAAU/scale and block further reductions. Camera/scene changes can invalidate comparisons. Menu pause, external settings changes, unsupported shader/API and failed reload stop or pause safely. Failed Iris reload is not guaranteed to roll back. No continuous per-frame dynamic resolution.
 
@@ -45,11 +53,11 @@ gradle build
 
 Одинаковая сцена, разрешение, дальность, время суток и Medium/High. Дождаться компиляции и прогрева чанков после каждого изменения; начать измерения, закрыть чат, постоять или повторить один маршрут 30 секунд, затем остановить. Повторить 3 раза для каждого масштаба 100%, 85%, 75%, 67%, 60%. Для исходной сцены с выключенным TAAU установить настройки вручную. Временно убрать ограничитель FPS и VSync для диагностики, затем вернуть. Последние 1800 кадров: средний FPS, p95 frame time, 1% low (обратная величина среднего 1% самых медленных кадров). GPU timestamp queries измеряют интервал команд GL между render events, не являются разбивкой отдельных проходов, не включают всю задержку дисплея и могут включать простои. Результаты GPU могут быть недоступны или приходить с задержкой; оставшиеся к моменту stop queries не учитываются. CPU-side frame interval включает ожидания и ограничитель кадров; это не чистое CPU time.
 
-Мод не гарантирует 80 FPS. Если снижение масштаба не улучшает FPS/GPU time, исследовать shadow pass, power limit, VRAM, CPU и presentation. Нет автоматического изменения масштаба: Photon использует compile-time defines, а reload во время игры вызывает фризы.
+Мод не гарантирует 80 FPS. Если снижение масштаба не улучшает FPS/GPU time, исследовать shadow pass, power limit, VRAM, CPU и presentation. Автоматическое изменение масштаба ограничено cooldown: Photon использует compile-time defines, а reload во время игры вызывает фризы.
 
 ## Статус
 
-Проверена компиляция независимых классов FrameStats и PhotonBridge через javac 21, тест FrameStats. Полная Gradle-сборка и запуск Minecraft не проверены (нет сети/Gradle в среде подготовки; MCP недоступен). Iris API и рендер-события требуют проверки с точными версиями установленной сборки. DLSS, FSR, dynamic resolution и профилирование отдельных shader passes пока не реализованы.
+Проверена компиляция независимых классов FrameStats и PhotonBridge через javac 21, тест FrameStats. Gradle-сборка 0.3.0 прошла GitHub Actions; запуск Minecraft не проверен. Iris API и рендер-события требуют проверки с точными версиями установленной сборки. DLSS, FSR, dynamic resolution и профилирование отдельных shader passes пока не реализованы.
 
 ## Следующие этапы
 
