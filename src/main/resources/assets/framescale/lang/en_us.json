@@ -1,0 +1,11 @@
+{
+  "framescale.title": "FrameScale — Graphics",
+  "framescale.enabled": "Photon TAA Upscaling: ON",
+  "framescale.disabled": "Photon TAA Upscaling: OFF",
+  "framescale.scale": "Render scale: %s%%",
+  "framescale.apply": "Apply & reload shaders",
+  "framescale.refresh": "Refresh compatibility",
+  "framescale.ready": "Active: %s. Changes are only applied when you click Apply.",
+  "framescale.applied": "Applied. Iris confirmed the values.",
+  "framescale.error": "Unavailable: %s"
+}

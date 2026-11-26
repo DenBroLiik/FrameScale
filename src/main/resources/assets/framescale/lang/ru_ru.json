@@ -1,0 +1,11 @@
+{
+  "framescale.title": "FrameScale — Графика",
+  "framescale.enabled": "Масштабирование Photon TAAU: ВКЛ",
+  "framescale.disabled": "Масштабирование Photon TAAU: ВЫКЛ",
+  "framescale.scale": "Разрешение рендера: %s%%",
+  "framescale.apply": "Применить и обновить шейдеры",
+  "framescale.refresh": "Проверить совместимость",
+  "framescale.ready": "Активен: %s. Изменения только после применения.",
+  "framescale.applied": "Применено. Iris подтвердил значения.",
+  "framescale.error": "Недоступно: %s"
+}

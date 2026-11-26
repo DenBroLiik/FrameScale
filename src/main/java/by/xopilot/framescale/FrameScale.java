@@ -10,6 +10,10 @@ import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent;
 import net.neoforged.neoforge.client.event.RenderFrameEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import java.util.Locale;
+import net.neoforged.fml.ModContainer;
+import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
+import net.neoforged.neoforge.client.event.ScreenEvent;
+import net.minecraft.client.gui.screens.Screen;
 
 @Mod(value="framescale", dist=Dist.CLIENT)
 public final class FrameScale {
@@ -17,11 +21,15 @@ public final class FrameScale {
     private final GpuTimer timer=new GpuTimer();
     private boolean measuring, gpuAvailable, gpuFailed, gpuPermitted;
     private long lastFrame;
-    public FrameScale() {
+    public FrameScale(ModContainer container) {
+        container.registerExtensionPoint(IConfigScreenFactory.class, (mod, parent) -> settings(parent));
+        NeoForge.EVENT_BUS.addListener(this::screenInit);
         NeoForge.EVENT_BUS.addListener(this::commands);
         NeoForge.EVENT_BUS.addListener(this::pre);
         NeoForge.EVENT_BUS.addListener(this::post);
     }
+    private Screen settings(Screen parent) { return new FrameScaleScreen(parent, this::stop); }
+    private void screenInit(ScreenEvent.Init.Post event) { VideoSettingsEntry.add(event, this::settings); }
     private void pre(RenderFrameEvent.Pre ignored) {
         if (!measuring || Minecraft.getInstance().level==null) { lastFrame=0; return; }
         long now=System.nanoTime();
