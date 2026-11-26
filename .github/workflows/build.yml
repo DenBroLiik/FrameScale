@@ -87,6 +87,10 @@ jobs:
         run: |
           cargo build --manifest-path native/dlss/rust/Cargo.toml --locked --features vulkan --bin scheduler_probe
           timeout 20s native/dlss/rust/target/debug/scheduler_probe
+      - name: Rust synthetic HDR image pipeline
+        run: |
+          cargo build --manifest-path native/dlss/rust/Cargo.toml --locked --features vulkan --bin pipeline_probe
+          timeout 20s native/dlss/rust/target/debug/pipeline_probe
       - name: Compile mod
         run: gradle --no-daemon build
       - uses: actions/upload-artifact@v4

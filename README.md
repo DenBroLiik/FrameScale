@@ -1,6 +1,10 @@
-# FrameScale 0.7.0-alpha.8
+# FrameScale 0.7.0-alpha.9
 
 Экспериментальный client-side мод Minecraft 1.21.1 / NeoForge / Java 21. Использует штатный временной апскейлер Photon (не NVIDIA DLSS). Не содержит нативных библиотек и не меняет рендер до явной команды игрока. Iris используется через проверяемую рефлексию; API не гарантирован, при несовместимости команда сообщает об ошибке.
+
+## 0.7.0-alpha.9 — Local HDR image pipeline
+
+Rust frame pipeline binds reusable command/fence slots to local HDR color/output, R32F depth and RG16F motion textures plus diagnostic readback buffers. Synthetic color clear, nearest Vulkan blit, readback and verification of every HDR output pixel, explicit consumer release and bounded allocation budget (256 MiB estimated and checked against actual image/buffer requirements after allocation). CI exercises 128 frames through three slots. Depth/motion are cleared but not consumed by the blit. This is a local Vulkan test, not DLSS, real scene reconstruction or external GL interop. No in-game rendering changes.
 
 ## 0.7.0-alpha.8 — Nonblocking Vulkan scheduler
 

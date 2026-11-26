@@ -2,6 +2,10 @@
 
 FrameScale uses Photon TAAU, not DLSS. No fake DLSS switch is exposed. Native Linux DLSS Super Resolution requires an NVIDIA-supported Vulkan/NGX implementation; Minecraft 1.21.1 Iris renders using OpenGL. No replacement of GPUTape/Sodium/Iris or forced VulkanMod migration is acceptable.
 
+## Progress in 0.7.0-alpha.9
+
+Local Rust frame pipeline owns four images per slot and a readback buffer; nonblocking scheduler executes synthetic HDR clear/blit/copy and retains output until verification and release. No actual temporal reconstruction or GL producer/consumer handshake. Hardware and SDK validation still required.
+
 ## Progress in 0.7.0-alpha.8
 
 Rust nonblocking Vulkan scheduler supports up to four reusable command/fence slots, generation tickets, Busy backpressure and explicit release after both Vulkan and external consumers retire. Separate software submission smoke. Existing NGX session remains single-flight; no production GL frame handoff or in-game integration.
