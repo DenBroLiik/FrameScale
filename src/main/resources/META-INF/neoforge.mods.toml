@@ -28,3 +28,6 @@ side="CLIENT"
 
 [modproperties.framescale]
 "sodium:config_api_user"="by.xopilot.framescale.SodiumConfigEntry"
+
+[[mixins]]
+config="framescale.iris.mixins.json"

@@ -26,6 +26,7 @@ public final class FrameScale {
     private final Path prefsPath=FMLPaths.CONFIGDIR.get().resolve("framescale.properties");
     private final SodiumAutoApply sodiumAutoApply=new SodiumAutoApply();
     private final AutoQuality auto=new AutoQuality(s->message(s));
+    private final PassProfiler passes=new PassProfiler(s->message(s));
     private final FrameStats frames=new FrameStats(1800), gpu=new FrameStats(1800);
     private final GpuTimer timer=new GpuTimer();
     private boolean measuring, gpuAvailable, gpuFailed, gpuPermitted;
@@ -44,10 +45,10 @@ public final class FrameScale {
         NeoForge.EVENT_BUS.addListener(this::post);
     }
     private Screen settings(Screen parent) { return createSettings(parent); }
-    static Screen createSettings(Screen parent) { return new FrameScaleScreen(parent, ()->{ if(instance!=null) instance.stop(); }); }
-    static void stopActiveProfiler() { if(instance!=null) instance.stop(); }
+    static Screen createSettings(Screen parent) { return new FrameScaleScreen(parent, FrameScale::stopActiveProfiler); }
+    static void stopActiveProfiler() { if(instance!=null) { instance.stop(); instance.passes.stop(); } }
     static boolean autoEnabled() { return instance!=null&&instance.auto.enabled(); }
-    static boolean enableAuto() { if(instance==null) return false; instance.stop(); return instance.auto.enable(); }
+    static boolean enableAuto() { if(instance==null) return false; instance.stop(); instance.passes.stop(); return instance.auto.enable(); }
     static void disableAuto() { if(instance!=null&&instance.auto.enabled()) instance.auto.disable("Manual mode"); }
     static int autoTarget() { return instance==null?AutoQuality.DEFAULT_TARGET:instance.auto.target(); }
     static int autoFloor() { return instance==null?AutoQuality.DEFAULT_FLOOR:instance.auto.floor(); }
@@ -63,6 +64,7 @@ public final class FrameScale {
     private void clientTick(ClientTickEvent.Post event) { sodiumAutoApply.tick(); auto.tick(); }
     private void screenInit(ScreenEvent.Init.Post event) { VideoSettingsEntry.add(event, this::settings); }
     private void pre(RenderFrameEvent.Pre ignored) {
+        passes.pre();
         auto.pre();
         if (!measuring || Minecraft.getInstance().level==null) { lastFrame=0; return; }
         long now=System.nanoTime();
@@ -73,12 +75,12 @@ public final class FrameScale {
             catch (RuntimeException | LinkageError e) { gpuFailed=true; gpuAvailable=false; }
         }
     }
-    private void post(RenderFrameEvent.Post ignored) { auto.post(); if(measuring && !gpuFailed && gpuPermitted) {
+    private void post(RenderFrameEvent.Post ignored) { passes.post(); auto.post(); if(measuring && !gpuFailed && gpuPermitted) {
             try { timer.end(); }
             catch (RuntimeException | LinkageError e) { gpuFailed=true; gpuAvailable=false; }
         } }
     private void stop() { measuring=false; lastFrame=0; try { timer.close(); } catch (RuntimeException | LinkageError e) { gpuAvailable=false; } }
-    private void start() { disableAuto(); stop(); frames.clear(); gpu.clear(); gpuAvailable=false; gpuFailed=false; gpuPermitted=CompatPolicy.evaluate(CompatInventory.loaded()).gpuTimer(); measuring=true; }
+    private void start() { disableAuto(); passes.stop(); stop(); frames.clear(); gpu.clear(); gpuAvailable=false; gpuFailed=false; gpuPermitted=CompatPolicy.evaluate(CompatInventory.loaded()).gpuTimer(); measuring=true; }
     private int message(String s) {
         var gui=Minecraft.getInstance().gui;
         if(gui!=null) gui.getChat().addMessage(Component.literal("[FrameScale] "+s)); return 1;
@@ -90,7 +92,7 @@ public final class FrameScale {
     }
     private int status() { try { return message(PhotonBridge.status()); } catch(ReflectiveOperationException|RuntimeException|LinkageError e){ return message("Unsupported Iris/Photon: "+e); } }
     private int scale(int n) {
-        disableAuto();
+        disableAuto(); passes.stop();
         var decision=CompatPolicy.evaluate(CompatInventory.loaded());
         if (!decision.scale()) return message("Scale blocked: "+decision.reason());
         stop();
@@ -100,6 +102,15 @@ public final class FrameScale {
     private int compatExport() {
         try { return message("Saved: "+CompatInventory.export(Minecraft.getInstance().gameDirectory.toPath())); }
         catch (java.io.IOException | RuntimeException e) { return message("Export failed: "+e.getClass().getSimpleName()); }
+    }
+    private int startPasses(int count) {
+        if(passes.running()) return message("Pass capture already running");
+        disableAuto(); stop();
+        return message(passes.start(count));
+    }
+    private int exportPasses() {
+        try { return message("Saved: "+passes.export(Minecraft.getInstance().gameDirectory.toPath())); }
+        catch(java.io.IOException|RuntimeException e) { return message("Export failed: "+e.getMessage()); }
     }
     private void commands(RegisterClientCommandsEvent event) {
         event.getDispatcher().register(Commands.literal("framescale")
@@ -115,6 +126,12 @@ public final class FrameScale {
                 .then(Commands.literal("off").executes(c->{disableAuto();return message(auto.status());}))
                 .then(Commands.literal("target").then(Commands.argument("fps",IntegerArgumentType.integer(30,240)).executes(c->{autoTarget(IntegerArgumentType.getInteger(c,"fps"));return message(auto.status());})))
                 .then(Commands.literal("floor").then(Commands.argument("percent",IntegerArgumentType.integer(50,100)).executes(c->{autoFloor(IntegerArgumentType.getInteger(c,"percent"));return message(auto.status());}))))
+            .then(Commands.literal("passes")
+                .then(Commands.literal("start").executes(c->startPasses(240))
+                    .then(Commands.argument("frames",IntegerArgumentType.integer(60,1200)).executes(c->startPasses(IntegerArgumentType.getInteger(c,"frames")))))
+                .then(Commands.literal("report").executes(c->message(passes.report())))
+                .then(Commands.literal("stop").executes(c->{passes.stop();return message(passes.report());}))
+                .then(Commands.literal("export").executes(c->exportPasses())))
             .then(Commands.literal("bench")
                 .then(Commands.literal("start").executes(c->{start();return message("Measuring; close chat and keep scene consistent.");}))
                 .then(Commands.literal("report").executes(c->report()))
