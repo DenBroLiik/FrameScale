@@ -47,3 +47,7 @@ Linux EGL only. From rust/: `cargo build --locked --features gl-interop --bin gl
 ## Rust roundtrip (alpha.6)
 
 From rust/: `cargo build --locked --features gl-interop --bin gl_import_probe`; `timeout 20s target/debug/gl_import_probe --local` tests local Vulkan clear/readback. `EGL_PLATFORM=surfaceless timeout 30s target/debug/gl_import_probe --roundtrip` tests 16 bidirectional RGBA8 exchanges on the matched NVIDIA GPU. No argument still tests import-only of all five formats. Exit 77 is unsupported EGL/GL extensions, not successful interop. Uses one 8x8 shared image, two binary semaphores, GENERAL layout, EXTERNAL ownership transfer and one reusable verification buffer. CPU waits/readback only for diagnostics. On any roundtrip error terminate the dedicated process rather than destroy potentially in-flight resources. No in-game execution; use the outer timeout as GL calls may block. Hardware validation pending; not a latency benchmark.
+
+## Rust JNI (alpha.7)
+
+`sh native/jni/build.sh` from the repository root builds the optional ABI-1 diagnostic library with the `jni` feature. No NVIDIA SDK is required. The game uses the shared Rust Vulkan inventory for UUID matching. Interop and DLSS execution remain standalone/unconnected to this JNI path. See native/jni/README.md.

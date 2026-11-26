@@ -1,6 +1,10 @@
-# FrameScale 0.7.0-alpha.6
+# FrameScale 0.7.0-alpha.7
 
 Экспериментальный client-side мод Minecraft 1.21.1 / NeoForge / Java 21. Использует штатный временной апскейлер Photon (не NVIDIA DLSS). Не содержит нативных библиотек и не меняет рендер до явной команды игрока. Iris используется через проверяемую рефлексию; API не гарантирован, при несовместимости команда сообщает об ошибке.
+
+## 0.7.0-alpha.7 — Rust JNI
+
+The optional Linux x86_64 JNI library now builds from Rust using ash and jni-sys, preserving ABI 1 and the existing Minecraft commands. Actual GL UUID inputs are checked against the shared Rust Vulkan inventory. Strict lengths/zero/ambiguous rejection; no Rust unwind crosses the JNI boundary. Real software Vulkan device match through Java in CI, not NVIDIA interop. The old C bridge is not linked. No logical device creation, GL context manipulation or NGX execution in the JNI path. Gameplay unchanged.
 
 ## 0.7.0-alpha.6 — Rust bidirectional RGBA8 diagnostic
 

@@ -171,6 +171,8 @@ pub mod shared;
 pub mod gl_interop;
 #[cfg(all(feature="gl-interop",target_os="linux"))]
 pub mod roundtrip;
+#[cfg(all(feature="jni",target_os="linux",target_arch="x86_64"))]
+mod jni_bridge;
 
 #[cfg(test)]
 mod tests {

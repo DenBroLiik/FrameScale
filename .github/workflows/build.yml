@@ -65,6 +65,12 @@ jobs:
           cargo build --manifest-path native/dlss/rust/Cargo.toml --locked --features vulkan --bin vulkan_probe
           timeout 20s native/dlss/rust/target/debug/vulkan_probe --smoke
           timeout 20s native/dlss/rust/target/debug/vulkan_probe --resources
+          cargo test --manifest-path native/dlss/rust/Cargo.toml --locked --features jni
+          inventory="$(native/dlss/rust/target/debug/vulkan_probe)"
+          ids="$(printf '%s\n' "$inventory" | sed -nE 's/.* UUID=([0-9a-f]{32}) driver=([0-9a-f]{32}) .*/\1 \2/p' | head -n 1)"
+          test -n "$ids"
+          # UUID fields are fixed-length hex, intentionally split into two arguments.
+          java -Xcheck:jni -Dframescale.native.path="$PWD/build/native/libframescale_native.so" -cp build/native/classes by.xopilot.framescale.NativeBridgeTest matched $ids
       - name: Rust OpenGL import API and capability smoke
         run: |
           cargo test --manifest-path native/dlss/rust/Cargo.toml --locked --features gl-interop
