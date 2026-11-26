@@ -27,10 +27,28 @@ final class TemporalProbe {
                 long ns=GL33.glGetQueryObjectui64(end,GL15.GL_QUERY_RESULT)-GL33.glGetQueryObjectui64(start,GL15.GL_QUERY_RESULT);
                 if(ns>=0)samples.add(ns/1e6);
                 var snap=samples.snapshot();
-                status=String.format(java.util.Locale.ROOT,"%d samples | mean %.3f ms | p95 %.3f ms | identity motion, no DLSS",snap.count(),snap.meanMs(),snap.p95Ms());
+                status=String.format(java.util.Locale.ROOT,"%d samples | mean %.3f ms | p95 %.3f ms | "+(cameraOnly?"camera-only motion":"identity motion")+", no DLSS",snap.count(),snap.meanMs(),snap.p95Ms())
+                    +" | "+summarizeMotion();
                 cleanup();
             }else if(System.nanoTime()-deadline>=0){status="GPU timing expired";cleanup();}
         }catch(RuntimeException|LinkageError e){status="Timing unavailable";cleanup();}
+    }
+    private static String summarizeMotion(){
+        if(outputs[2]==0||outputs[3]==0||width<1||height<1)return "motion readback unavailable";
+        int sw=Math.min(width,128),sh=Math.min(height,128),x=(width-sw)/2,y=(height-sh)/2,total=sw*sh;
+        try(var stack=MemoryStack.stackPush()){
+            var vectorBuffer=stack.mallocFloat(total*2);
+            var validityBuffer=stack.malloc(total);
+            GL45.glGetTextureSubImage(outputs[2],0,x,y,0,sw,sh,1,GL30.GL_RG,GL11.GL_FLOAT,vectorBuffer);
+            GL45.glGetTextureSubImage(outputs[3],0,x,y,0,sw,sh,1,GL30.GL_RED_INTEGER,GL11.GL_UNSIGNED_BYTE,validityBuffer);
+            float[] vectors=new float[total*2];
+            byte[] validity=new byte[total];
+            vectorBuffer.rewind();validityBuffer.rewind();
+            vectorBuffer.get(vectors);validityBuffer.get(validity);
+            return MotionStats.summarize(sw,sh,vectors,validity).format();
+        }catch(RuntimeException|LinkageError e){
+            return "motion readback unavailable ("+e.getClass().getSimpleName()+")";
+        }
     }
     static void cleanup(){
         if(start!=0)GL15.glDeleteQueries(start);

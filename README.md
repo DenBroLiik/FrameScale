@@ -1,4 +1,13 @@
-# FrameScale 0.8.0-alpha.6
+# FrameScale 0.8.0-alpha.7
+
+Экспериментальный client-side мод Minecraft 1.21.1 / NeoForge / Java 21. Использует штатный временной апскейлер Photon (не NVIDIA DLSS). Не содержит нативных библиотек и не меняет рендер до явной команды игрока. Iris используется через проверяемую рефлексию; API не гарантирован, при несовместимости команда сообщает об ошибке.
+
+## 0.8.0-alpha.7 — Bounded motion-vector diagnostics
+
+After the one-shot private compute dispatch completes, FrameScale reads back only the central region (at most 128×128) of motion vectors and validity. Reports valid sample ratio, Photon hand-path count, mean X/Y motion, p95 and maximum magnitude. This is an explicit diagnostic readback after the GPU timestamp is available, not a per-frame readback; it may briefly synchronize the render thread. Motion statistics are diagnostic only and do not establish disocclusion, reactive masks, dynamic-object motion, or DLSS readiness. Added independent bounded-input/statistics tests. The existing Photon draw and history remain untouched.
+
+## 0.8.0-alpha.6 — Camera reprojection input probe
+
 
 Экспериментальный client-side мод Minecraft 1.21.1 / NeoForge / Java 21. Использует штатный временной апскейлер Photon (не NVIDIA DLSS). Не содержит нативных библиотек и не меняет рендер до явной команды игрока. Iris используется через проверяемую рефлексию; API не гарантирован, при несовместимости команда сообщает об ошибке.
 
