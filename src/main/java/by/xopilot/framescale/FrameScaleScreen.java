@@ -82,6 +82,7 @@ final class FrameScaleScreen extends Screen {
         if(baseline.enabled()==enabled && baseline.percent()==percent && (!enabled||baseline.taa())) return true;
         applying=true;
         try {
+            FrameScale.disableAuto();
             stopProfiler.run();
             baseline=PhotonBridge.apply(baseline,enabled,percent);
             enabled=baseline.enabled(); percent=baseline.percent();

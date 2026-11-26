@@ -6,48 +6,55 @@ import net.minecraft.resources.ResourceLocation;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.LoggerFactory;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 
-/**
- * Sodium's public config API stages values until Apply. The 0.8.13 implementation
- * exposes single-option apply; probe it only on that version and never apply other mods' options.
- */
+/** Version-probed single-option application. Never invokes Sodium.applyAllOptions. */
 final class SodiumAutoApply {
     private static final String SCREEN="net.caffeinemc.mods.sodium.client.gui.VideoSettingsScreen";
-    private static final ResourceLocation ID=ResourceLocation.fromNamespaceAndPath("framescale","render_scale");
-    private Object config,option;
-    private Method apply,modify,changed,validated;
+    private static final List<String> IDS=List.of("target_fps","quality_floor","render_scale");
+    private record Slot(ResourceLocation id,Object option,Method modify,Method changed,Method validated) {
+        boolean dirty() throws ReflectiveOperationException { return Boolean.TRUE.equals(changed.invoke(option)); }
+        int value() throws ReflectiveOperationException { return (Integer)validated.invoke(option); }
+    }
+    private Object config;
+    private Method apply;
+    private List<Slot> slots=List.of();
     private boolean unavailable;
-    private int last=Integer.MIN_VALUE,settled;
+    private List<Integer> last=List.of();
+    private int settled;
     private Screen screen;
     private static boolean isSodium(Screen s) { return s!=null && SCREEN.equals(s.getClass().getName()); }
     private boolean connect() throws ReflectiveOperationException {
         if(unavailable) return false;
+        if(config!=null&&!slots.isEmpty()) return true;
         String version=CompatInventory.loaded().getOrDefault("sodium","");
         if(!version.equals("0.8.13")&&!version.startsWith("0.8.13+")) return false;
-        Class<?> manager=Class.forName("net.caffeinemc.mods.sodium.client.config.ConfigManager");
-        Object next=manager.getField("CONFIG").get(null);
+        Object next=Class.forName("net.caffeinemc.mods.sodium.client.config.ConfigManager").getField("CONFIG").get(null);
         if(next==null) return false;
-        if(next!=config || option==null) {
-            Object found=next.getClass().getMethod("getOption",ResourceLocation.class).invoke(next,ID);
-            if(found==null) return false;
-            apply=next.getClass().getMethod("applyOption",ResourceLocation.class);
-            modify=found.getClass().getMethod("modifyValue",Object.class);
-            changed=found.getClass().getMethod("hasChanged");
-            validated=found.getClass().getMethod("getValidatedValue");
-            config=next; option=found;
+        var found=new ArrayList<Slot>();
+        for(String name:IDS) {
+            var id=ResourceLocation.fromNamespaceAndPath("framescale",name);
+            Object o=next.getClass().getMethod("getOption",ResourceLocation.class).invoke(next,id);
+            if(o==null) return false;
+            found.add(new Slot(id,o,o.getClass().getMethod("modifyValue",Object.class),
+                o.getClass().getMethod("hasChanged"),o.getClass().getMethod("getValidatedValue")));
         }
-        return true;
+        apply=next.getClass().getMethod("applyOption",ResourceLocation.class);
+        config=next; slots=List.copyOf(found); return true;
     }
     private void sync() throws ReflectiveOperationException {
-        int value=NativeScaleOption.load();
+        int scale=NativeScaleOption.load();
+        int[] values={FrameScale.autoTarget(),FrameScale.autoFloor(),scale};
         NativeScaleOption.beginSync();
         try {
-            modify.invoke(option,Integer.valueOf(value));
-            if(Boolean.TRUE.equals(changed.invoke(option))) apply.invoke(config,ID);
+            for(int i=0;i<slots.size();i++) {
+                var s=slots.get(i); s.modify.invoke(s.option,Integer.valueOf(values[i]));
+                if(s.dirty()) apply.invoke(config,s.id);
+            }
         } finally { NativeScaleOption.endSync(); }
-        last=Integer.MIN_VALUE; settled=0;
+        last=List.of(); settled=0;
     }
-    // Run before Sodium rebuilds its option widgets, so the native slider reflects current Iris.
     void init(Screen s) {
         if(!isSodium(s)) return;
         try { if(connect()) { sync(); screen=s; } }
@@ -56,18 +63,20 @@ final class SodiumAutoApply {
     void tick() {
         if(unavailable) return;
         Minecraft mc=Minecraft.getInstance();
-        if(!isSodium(mc.screen)) { screen=null; settled=0; last=Integer.MIN_VALUE; return; }
+        if(!isSodium(mc.screen)) { screen=null; config=null; slots=List.of(); settled=0; last=List.of(); return; }
         try {
             if(!connect()) return;
-            if(screen!=mc.screen || NativeScaleOption.needsSync()) { sync(); screen=mc.screen; }
-            if(!NativeScaleOption.available() || !Boolean.TRUE.equals(changed.invoke(option))) { settled=0; last=Integer.MIN_VALUE; return; }
-            int value=(Integer)validated.invoke(option);
+            if(screen!=mc.screen||NativeScaleOption.needsSync()) { sync(); screen=mc.screen; }
+            var values=new ArrayList<Integer>();
+            boolean dirty=false;
+            for(var s:slots) { boolean d=s.dirty(); dirty|=d; values.add(d?s.value():-1); }
+            if(!dirty) { settled=0; last=List.of(); return; }
             if(GLFW.glfwGetMouseButton(mc.getWindow().getWindow(),GLFW.GLFW_MOUSE_BUTTON_LEFT)==GLFW.GLFW_PRESS) {
-                last=value; settled=0; return;
+                last=List.copyOf(values); settled=0; return;
             }
-            if(value!=last) { last=value; settled=0; return; }
+            if(!values.equals(last)) { last=List.copyOf(values); settled=0; return; }
             if(++settled>=3) {
-                apply.invoke(config,ID);
+                for(var s:slots) if(s.dirty()) apply.invoke(config,s.id);
                 if(NativeScaleOption.needsSync()) sync();
                 settled=0;
             }

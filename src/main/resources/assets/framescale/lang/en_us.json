@@ -10,5 +10,11 @@
   "framescale.pending": "Finishing changes… shaders will reload automatically.",
   "framescale.native.scale": "Render scale",
   "framescale.native.off": "Off (%s)",
-  "framescale.native.tooltip": "Photon TAAU: %s%%\\n%s\\nEstimated internal → output resolution. Auto-applies after slider release on Sodium 0.8.13; shader reload required."
+  "framescale.native.tooltip": "Photon TAAU: %s%%\\n%s\\nEstimated internal → output resolution. Auto-applies after slider release on Sodium 0.8.13; shader reload required.",
+  "framescale.native.auto": "Auto (%s)",
+  "framescale.auto.tooltip": "Target %s FPS, floor %s%%\\n%s\\nChanges scale only under sustained stable load. Photon requires shader reload.",
+  "framescale.auto.target": "Target FPS",
+  "framescale.auto.target.tip": "Target frame rate in auto mode. Default: 80. Consider VSync and FPS caps.",
+  "framescale.auto.floor": "Minimum render scale",
+  "framescale.auto.floor.tip": "Auto will not reduce scale below this limit. Default: 75%. Lower values may lose detail."
 }

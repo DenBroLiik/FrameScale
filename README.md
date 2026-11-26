@@ -1,6 +1,14 @@
-# FrameScale 0.2.0-alpha.3
+# FrameScale 0.3.0
 
 Экспериментальный client-side мод Minecraft 1.21.1 / NeoForge / Java 21. Использует штатный временной апскейлер Photon (не NVIDIA DLSS). Не содержит нативных библиотек и не меняет рендер до явной команды игрока. Iris используется через проверяемую рефлексию; API не гарантирован, при несовместимости команда сообщает об ошибке.
+
+## 0.3.0 — Auto quality
+
+Native Sodium page: choose Auto at the left end of Render Scale, or `/framescale auto on`. Target defaults to 80 FPS and minimum downward scale to 75%; change both using native sliders or `/framescale auto target 80`, `/framescale auto floor 75`. `/framescale auto` shows status; `/framescale auto off` stops adaptation and keeps the current scale. Auto and these preferences are session-only in this version; Photon persists the last applied shader scale. Manual scale and manual benchmark stop Auto.
+
+The governor waits for focused gameplay, a 10-second warmup after menus/resizes/world changes/reload and chunk bursts (4+ client chunk-load events per second). Six-second windows use median, p90 and outlier fraction; unstable windows are discarded. It requires three sustained slow GPU-heavy windows to reduce by at most five percentage points and four headroom windows to increase quality. Lowering is bounded by the floor; if a manually chosen starting scale is already lower, Auto will not lower it further. GL timestamps are a heuristic, not definitive GPU-utilization measurements. No GPU timing means no automatic scale changes. VSync or FPS limits below the target can prevent adaptation. Only one reload per 60 seconds and at most six per activation, including rollback; a reduction without measured gain in a comparable area can restore prior TAA/TAAU/scale and block further reductions. Camera/scene changes can invalidate comparisons. Menu pause, external settings changes, unsupported shader/API and failed reload stop or pause safely. Failed Iris reload is not guaranteed to roll back. No continuous per-frame dynamic resolution.
+
+Quality comes first: native or higher scale is preferred when measured headroom exists. Temporal reconstruction is not mathematically lossless. DLSS is not implemented; see docs/DLSS.md for integration requirements. No new Mixin, GL framebuffer override, native libraries or third-party upscaler. Complete modpack/runtime tests remain required.
 
 ## 0.2.0-alpha.3 — Нативные настройки Sodium
 

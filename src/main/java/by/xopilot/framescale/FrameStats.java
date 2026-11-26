@@ -16,6 +16,17 @@ public final class FrameStats {
         size = Math.min(size + 1, samples.length);
     }
     public void clear() { size = next = 0; }
+    AutoPolicy.Window robust() {
+        if(size==0) return new AutoPolicy.Window(0,0,0,1);
+        double[] sorted=Arrays.copyOf(samples,size);
+        Arrays.sort(sorted);
+        double median=sorted[(int)Math.ceil(size*0.5)-1];
+        double p90=sorted[(int)Math.ceil(size*0.9)-1];
+        double threshold=Math.max(50,median*2.5);
+        int spikes=0;
+        for(double v:sorted) if(v>threshold) spikes++;
+        return new AutoPolicy.Window(size,median,p90,(double)spikes/size);
+    }
     public record Snapshot(int count, double meanMs, double p95Ms, double fps, double low1Fps) {}
     public Snapshot snapshot() {
         if (size == 0) return new Snapshot(0, 0, 0, 0, 0);

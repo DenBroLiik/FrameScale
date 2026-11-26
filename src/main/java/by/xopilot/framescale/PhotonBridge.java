@@ -88,14 +88,20 @@ final class PhotonBridge {
         apply(before,true,percent);
         return status();
     }
-    @SuppressWarnings("unchecked")
     static Settings apply(Settings expected, boolean enabled, int percent) throws ReflectiveOperationException {
+        return change(expected,enabled||expected.taa(),enabled,percent);
+    }
+    static Settings restore(Settings expected,Settings previous) throws ReflectiveOperationException {
+        if(!expected.pack().equals(previous.pack())) throw new IllegalStateException("Shader pack changed");
+        return change(expected,previous.taa(),previous.enabled(),previous.percent());
+    }
+    @SuppressWarnings("unchecked")
+    private static Settings change(Settings expected,boolean taa,boolean enabled,int percent) throws ReflectiveOperationException {
         State s=state();
         Settings before=read(s);
         if (!before.equals(expected)) throw new IllegalStateException("Iris settings changed; reopen FrameScale");
         String declared=allowed(s).get(percent);
         if (declared==null) throw new IllegalArgumentException("Scale not allowed: "+percent);
-        boolean taa=enabled || before.taa();
         if (before.enabled()==enabled && before.percent()==percent && before.taa()==taa) return before;
         Map<String,String> queue=(Map<String,String>)call(s.iris,"getShaderPackOptionQueue");
         if (!queue.isEmpty()) throw new IllegalStateException("Apply or cancel pending changes in Iris first");
@@ -103,7 +109,7 @@ final class PhotonBridge {
             throw new IllegalStateException("Iris reset pending; finish it first");
         var reload=s.iris.getMethod("reload");
         try {
-            if (enabled && !before.taa()) queue.put(TAA,"true");
+            if (before.taa()!=taa) queue.put(TAA,Boolean.toString(taa));
             if (before.enabled()!=enabled) queue.put(TAAU,Boolean.toString(enabled));
             if (before.percent()!=percent) queue.put(SCALE,declared);
             reload.invoke(null);
