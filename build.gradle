@@ -2,7 +2,7 @@ plugins {
     id 'java'
     id 'net.neoforged.moddev' version '2.0.148'
 }
-version = '0.6.0-alpha.3'
+version = '0.6.0-alpha.4'
 group = 'by.xopilot'
 base { archivesName = 'framescale-neoforge-1.21.1' }
 java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }

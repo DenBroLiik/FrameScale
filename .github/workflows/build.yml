@@ -37,6 +37,17 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq libegl1 libgl1-mesa-dri
           LIBGL_ALWAYS_SOFTWARE=1 EGL_PLATFORM=surfaceless python3 tests/spatial_gl_check.py src/main/resources/assets/framescale/shaders/spatial.comp
+      - name: Build and smoke-test native interop probe
+        run: |
+          sudo apt-get install -y -qq libvulkan-dev libegl-dev libgl-dev mesa-vulkan-drivers
+          cc -std=c11 -O2 -Wall -Wextra -Werror native/interop-probe/probe.c -o /tmp/framescale-interop -lvulkan -lEGL -lGL
+          rc=0
+          EGL_PLATFORM=surfaceless LIBGL_ALWAYS_SOFTWARE=1 timeout 20s /tmp/framescale-interop || rc=$?
+          if [ "$rc" = 77 ]; then
+            echo "::notice::Native GPU interop unsupported on software runner; hardware test required"
+          elif [ "$rc" != 0 ]; then
+            exit "$rc"
+          fi
       - name: Compile mod
         run: gradle --no-daemon build
       - uses: actions/upload-artifact@v4

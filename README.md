@@ -1,6 +1,10 @@
-# FrameScale 0.6.0-alpha.3
+# FrameScale 0.6.0-alpha.4
 
 Экспериментальный client-side мод Minecraft 1.21.1 / NeoForge / Java 21. Использует штатный временной апскейлер Photon (не NVIDIA DLSS). Не содержит нативных библиотек и не меняет рендер до явной команды игрока. Iris используется через проверяемую рефлексию; API не гарантирован, при несовместимости команда сообщает об ошибке.
+
+## 0.6.0-alpha.4 — Vulkan external resource probe
+
+Added a standalone Linux Vulkan → OpenGL opaque FD image/semaphore smoke test in native/interop-probe. /framescale gpu now reports GL device UUIDs when available. The diagnostic matches Vulkan device/driver UUIDs, checks export support, creates a dedicated RGBA8 image, transfers queue ownership to external, and verifies imported pixels after GL semaphore wait. No code is loaded into Minecraft from the native probe. CI builds the tool and distinguishes a capability skip from a verified pass. Hardware test required. See native/interop-probe/README.md. No active Photon integration, reverse GL → VK path or DLSS yet.
 
 ## 0.6.0-alpha.3 — Direct GPU path
 
