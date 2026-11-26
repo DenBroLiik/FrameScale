@@ -29,5 +29,8 @@
   "framescale.effects.tip.clouds": "Умеренно снижает число шагов трассировки облаков. Возможны отличия детализации.",
   "framescale.effects.tip.reflections": "Уменьшает число лучей и шагов SSR. Возможны отличия отражений.",
   "framescale.effects.tip.volumetrics": "Уменьшает число шагов световых лучей и LPV, если доступно.",
-  "framescale.effects.tip.balanced": "Облака, SSR и объёмный свет; карта теней и масштаб рендера остаются прежними."
+  "framescale.effects.tip.balanced": "Облака, SSR и объёмный свет; карта теней и масштаб рендера остаются прежними.",
+  "framescale.spatial.name": "Spatial (эксперимент)",
+  "framescale.spatial.off": "Выкл. / 100%",
+  "framescale.spatial.tip": "Рендер мира с пониженным разрешением и GPU-реконструкция перед HUD. Только проверяемый базовый рендер без Iris, GPUTape и других владельцев framebuffer. 100% отключает. Требуется OpenGL 4.5."
 }

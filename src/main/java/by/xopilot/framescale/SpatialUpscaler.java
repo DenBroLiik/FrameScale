@@ -14,7 +14,7 @@ import java.nio.charset.StandardCharsets;
 /**
  * LDR RGBA8 spatial compute backend. Only caller-owned immutable 2D textures on the
  * current render context are accepted. No temporal inputs, framebuffer ownership,
- * CPU readback or allocation per output pixel. Not connected to the world renderer.
+ * CPU readback or allocation per output pixel. Used by the experimental world renderer via staging textures.
  */
 final class SpatialUpscaler implements AutoCloseable {
     private static final String RESOURCE="/assets/framescale/shaders/spatial.comp";

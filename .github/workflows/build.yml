@@ -21,7 +21,7 @@ jobs:
       - name: Unit tests
         run: |
           mkdir -p /tmp/framescale-tests
-          javac -d /tmp/framescale-tests src/main/java/by/xopilot/framescale/FrameStats.java src/main/java/by/xopilot/framescale/CompatPolicy.java tests/FrameStatsTest.java tests/CompatPolicyTest.java src/main/java/by/xopilot/framescale/ApplyScheduler.java tests/ApplySchedulerTest.java src/main/java/by/xopilot/framescale/Resolution.java tests/ResolutionTest.java src/main/java/by/xopilot/framescale/AutoPolicy.java tests/AutoPolicyTest.java src/main/java/by/xopilot/framescale/SceneGuard.java src/main/java/by/xopilot/framescale/TrialPolicy.java src/main/java/by/xopilot/framescale/AutoPreferences.java tests/AutoSafetyTest.java src/main/java/by/xopilot/framescale/PassMetrics.java src/main/java/by/xopilot/framescale/PassSequence.java tests/PassMetricsTest.java src/main/java/by/xopilot/framescale/SamplingBudget.java src/main/java/by/xopilot/framescale/EffectSession.java tests/SamplingBudgetTest.java
+          javac -d /tmp/framescale-tests src/main/java/by/xopilot/framescale/FrameStats.java src/main/java/by/xopilot/framescale/CompatPolicy.java tests/FrameStatsTest.java tests/CompatPolicyTest.java src/main/java/by/xopilot/framescale/ApplyScheduler.java tests/ApplySchedulerTest.java src/main/java/by/xopilot/framescale/Resolution.java tests/ResolutionTest.java src/main/java/by/xopilot/framescale/AutoPolicy.java tests/AutoPolicyTest.java src/main/java/by/xopilot/framescale/SceneGuard.java src/main/java/by/xopilot/framescale/TrialPolicy.java src/main/java/by/xopilot/framescale/AutoPreferences.java tests/AutoSafetyTest.java src/main/java/by/xopilot/framescale/PassMetrics.java src/main/java/by/xopilot/framescale/PassSequence.java tests/PassMetricsTest.java src/main/java/by/xopilot/framescale/SamplingBudget.java src/main/java/by/xopilot/framescale/EffectSession.java tests/SamplingBudgetTest.java src/main/java/by/xopilot/framescale/SpatialPolicy.java tests/SpatialPolicyTest.java
           java -cp /tmp/framescale-tests FrameStatsTest
           java -cp /tmp/framescale-tests by.xopilot.framescale.CompatPolicyTest
           java -cp /tmp/framescale-tests by.xopilot.framescale.ApplySchedulerTest
@@ -30,6 +30,7 @@ jobs:
           java -cp /tmp/framescale-tests by.xopilot.framescale.AutoSafetyTest
           java -cp /tmp/framescale-tests by.xopilot.framescale.PassMetricsTest
           java -cp /tmp/framescale-tests by.xopilot.framescale.SamplingBudgetTest
+          java -cp /tmp/framescale-tests by.xopilot.framescale.SpatialPolicyTest
           python3 -m unittest discover -s tests -p 'test_*.py'
       - name: Software OpenGL shader execution
         run: |

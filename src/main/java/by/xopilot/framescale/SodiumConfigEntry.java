@@ -11,6 +11,7 @@ public final class SodiumConfigEntry implements ConfigEntryPoint {
     static final ResourceLocation TARGET=ResourceLocation.fromNamespaceAndPath("framescale","target_fps");
     static final ResourceLocation FLOOR=ResourceLocation.fromNamespaceAndPath("framescale","quality_floor");
     static final ResourceLocation EFFECTS=ResourceLocation.fromNamespaceAndPath("framescale","effect_budget");
+    static final ResourceLocation SPATIAL=ResourceLocation.fromNamespaceAndPath("framescale","spatial_scale");
     @Override public void registerConfigLate(ConfigBuilder builder) {
         var slider=builder.createIntegerOption(ID)
             .setName(Component.translatable("framescale.native.scale"))
@@ -41,8 +42,15 @@ public final class SodiumConfigEntry implements ConfigEntryPoint {
             .setBinding(EffectControls::save,EffectControls::load)
             .setValueFormatter(EffectControls::format)
             .setEnabledProvider(state->EffectControls.available(),ConfigState.UPDATE_ON_REBUILD);
+        var spatial=builder.createIntegerOption(SPATIAL)
+            .setName(Component.translatable("framescale.spatial.name"))
+            .setTooltip(Component.translatable("framescale.spatial.tip"))
+            .setStorageHandler(()->{}).setDefaultValue(100)
+            .setRange(50,100,1).setBinding(SpatialWorld::save,SpatialWorld::load)
+            .setValueFormatter(SpatialWorld::format)
+            .setEnabledProvider(state->SpatialWorld.available(),ConfigState.UPDATE_ON_REBUILD);
         builder.registerOwnModOptions().addPage(builder.createOptionPage()
             .setName(Component.literal("FrameScale"))
-            .addOption(slider).addOption(target).addOption(floor).addOption(effects));
+            .addOption(slider).addOption(target).addOption(floor).addOption(effects).addOption(spatial));
     }
 }

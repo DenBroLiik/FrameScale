@@ -62,7 +62,7 @@ public final class FrameScale {
     static String autoStatus() { return instance==null?"Off":instance.auto.status(); }
     private void chunkLoad(ChunkEvent.Load event) { if(event.getLevel().isClientSide()) auto.chunkLoaded(); }
     private void screenInitPre(ScreenEvent.Init.Pre event) { sodiumAutoApply.init(event.getScreen()); }
-    private void clientTick(ClientTickEvent.Post event) { sodiumAutoApply.tick(); auto.tick(); }
+    private void clientTick(ClientTickEvent.Post event) { sodiumAutoApply.tick(); auto.tick(); SpatialWorld.tick(); }
     private void screenInit(ScreenEvent.Init.Post event) { VideoSettingsEntry.add(event, this::settings); }
     private void pre(RenderFrameEvent.Pre ignored) {
         passes.pre();
@@ -123,7 +123,7 @@ public final class FrameScale {
     }
     private int spatialTest() {
         if(!CompatPolicy.evaluate(CompatInventory.loaded()).gpuTimer()) return message("Spatial test blocked by renderer compatibility policy");
-        if(auto.enabled()||passes.running()||measuring) return message("Stop Auto and profilers before spatial test");
+        if(auto.enabled()||passes.running()||measuring||SpatialWorld.load()!=100) return message("Stop Auto and profilers before spatial test");
         try { return message(SpatialSelfTest.run()); }
         catch(java.io.IOException|RuntimeException|LinkageError e) {
             LoggerFactory.getLogger("FrameScale").warn("Spatial self-test failed",e);
@@ -139,8 +139,10 @@ public final class FrameScale {
             .then(Commands.literal("scale").then(Commands.argument("percent",IntegerArgumentType.integer(50,100)).executes(c->scale(IntegerArgumentType.getInteger(c,"percent")))))
             .then(Commands.literal("gpu").executes(c->{try { return message(GpuDiagnostics.report()); } catch(RuntimeException|LinkageError e) { return message("GPU diagnostics unavailable: "+e); }}))
             .then(Commands.literal("upscale")
-                .executes(c->message("Photon TAAU active when selected; independent spatial backend is test-only. DLSS not implemented."))
-                .then(Commands.literal("test").executes(c->spatialTest())))
+                .executes(c->message(SpatialWorld.status()))
+                .then(Commands.literal("test").executes(c->spatialTest()))
+                .then(Commands.literal("spatial").then(Commands.argument("percent",IntegerArgumentType.integer(50,100))
+                    .executes(c->message(SpatialWorld.set(IntegerArgumentType.getInteger(c,"percent")))))))
             .then(Commands.literal("auto")
                 .executes(c->message(auto.status()))
                 .then(Commands.literal("on").executes(c->message(enableAuto()?auto.status():"Auto unavailable: "+auto.status())))

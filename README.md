@@ -1,6 +1,14 @@
-# FrameScale 0.6.0-alpha.1
+# FrameScale 0.6.0-alpha.2
 
 Экспериментальный client-side мод Minecraft 1.21.1 / NeoForge / Java 21. Использует штатный временной апскейлер Photon (не NVIDIA DLSS). Не содержит нативных библиотек и не меняет рендер до явной команды игрока. Iris используется через проверяемую рефлексию; API не гарантирован, при несовместимости команда сообщает об ошибке.
+
+## 0.6.0-alpha.2 — Experimental world integration
+
+В отдельном тестовом инстансе NeoForge/Sodium без Iris, GPUTape, DH и конкурирующих framebuffer/upscaler mods войдите в мир, выберите обычную графику (не Fabulous), затем `/framescale upscale spatial 75`. `/framescale upscale spatial 100` отключает режим; `/framescale upscale` показывает состояние. Также нативный слайдер Spatial в Sodium; изменения применяются штатным auto-apply FrameScale. Настройка действует только в текущем сеансе.
+
+GameRenderer.renderLevel обёрнут MixinExtras WrapMethod, getter main target перенаправляется только в пределах этого вызова на собственный уменьшенный TextureTarget. Размер окна и исходный framebuffer не изменяются. После world render scope снимается в finally, цвет копируется в immutable RGBA8 input, compute kernel масштабирует в output, затем GPU copy возвращает его в нативный color target; depth переносится nearest blit. HUD вне этого scope остаётся в исходном разрешении по архитектуре. Выделения переиспользуются, освобождаются при отключении/выходе из мира, при resize пересоздаются. При Java/GL-wrapper exception предусмотрено отключение и fallback blit, но GL errors, несовместимые чужие hooks и корректность картинки ещё не подтверждены runtime-тестом. Никакого CPU readback в игровом пути. Стоимость staging copies, compute и depth blit измерить перед выводом о FPS.
+
+Это предварительная интеграция, не замена Photon. Iris (даже выключенный), GPUTape, Distant Horizons и известные конкурирующие рендереры блокируют Spatial до проверки их API. Меню, Fabulous и активный vanilla post effect приостанавливают его. Гарантия совместимости со всеми остальными модами отсутствует; тестируйте копию инстанса. При активном Photon используйте прежний TAAU/Auto. DLSS отсутствует.
 
 ## 0.6.0-alpha.1 — Independent spatial GPU backend
 
@@ -8,7 +16,7 @@
 
 `/framescale upscale test` запускает небольшой явный self-test на текущем GPU Minecraft и проверяет пиксели в отдельной паре тестовых текстур: постоянный цвет, identity, контрастные края, альфа и нечётные размеры. Только в self-test выполняется синхронное чтение тестовых пикселей. Не трогает framebuffer игры, не меняет Iris, не запускается при активном Auto/профилировании или конфликтующем рендерере. `/framescale gpu` показывает наличие OpenGL 4.5. При отсутствии поддержки штатные функции сохраняются.
 
-GLSL проверяется независимо через EGL/Mesa: `LIBGL_ALWAYS_SOFTWARE=1 EGL_PLATFORM=surfaceless python3 tests/spatial_gl_check.py src/main/resources/assets/framescale/shaders/spatial.comp`. Тест не подтверждает Java state restoration, реальный RTX, производительность или качество в Minecraft. Бэкенд пока НЕ подключён к мировому кадру: сначала требуется проверить место интеграции, source/output формат и владение буферами с Iris/Sodium/GPUTape. Не добавляет фиктивный переключатель алгоритма. Действующий TAAU/Auto и меню Sodium сохранены. Сам тестовый kernel пока не увеличивает игровой FPS.
+GLSL проверяется независимо через EGL/Mesa: `LIBGL_ALWAYS_SOFTWARE=1 EGL_PLATFORM=surfaceless python3 tests/spatial_gl_check.py src/main/resources/assets/framescale/shaders/spatial.comp`. Тест не подтверждает Java state restoration, реальный RTX, производительность или качество в Minecraft. В alpha.1 бэкенд ещё не был подключён к мировому кадру: сначала требуется проверить место интеграции, source/output формат и владение буферами с Iris/Sodium/GPUTape. Не добавляет фиктивный переключатель алгоритма. Действующий TAAU/Auto и меню Sodium сохранены. Сам тестовый kernel пока не увеличивает игровой FPS.
 
 ## 0.5.0 — Effect budgets
 

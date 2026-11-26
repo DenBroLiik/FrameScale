@@ -31,3 +31,6 @@ side="CLIENT"
 
 [[mixins]]
 config="framescale.iris.mixins.json"
+
+[[mixins]]
+config="framescale.spatial.mixins.json"

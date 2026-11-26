@@ -1,0 +1,13 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "by.xopilot.framescale.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "SpatialGameRendererMixin",
+    "SpatialMinecraftMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

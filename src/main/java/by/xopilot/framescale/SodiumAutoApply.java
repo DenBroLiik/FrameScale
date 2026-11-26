@@ -12,7 +12,7 @@ import java.util.List;
 /** Version-probed single-option application. Never invokes Sodium.applyAllOptions. */
 final class SodiumAutoApply {
     private static final String SCREEN="net.caffeinemc.mods.sodium.client.gui.VideoSettingsScreen";
-    private static final List<String> IDS=List.of("target_fps","quality_floor","render_scale","effect_budget");
+    private static final List<String> IDS=List.of("target_fps","quality_floor","render_scale","effect_budget","spatial_scale");
     private record Slot(ResourceLocation id,Object option,Method modify,Method changed,Method validated) {
         boolean dirty() throws ReflectiveOperationException { return Boolean.TRUE.equals(changed.invoke(option)); }
         int value() throws ReflectiveOperationException { return (Integer)validated.invoke(option); }
@@ -45,14 +45,14 @@ final class SodiumAutoApply {
     }
     private void sync() throws ReflectiveOperationException {
         int scale=NativeScaleOption.load();
-        int[] values={FrameScale.autoTarget(),FrameScale.autoFloor(),scale,EffectControls.load()};
-        NativeScaleOption.beginSync(); EffectControls.beginSync();
+        int[] values={FrameScale.autoTarget(),FrameScale.autoFloor(),scale,EffectControls.load(),SpatialWorld.load()};
+        NativeScaleOption.beginSync(); EffectControls.beginSync(); SpatialWorld.beginSync();
         try {
             for(int i=0;i<slots.size();i++) {
                 var s=slots.get(i); s.modify.invoke(s.option,Integer.valueOf(values[i]));
                 if(s.dirty()) apply.invoke(config,s.id);
             }
-        } finally { NativeScaleOption.endSync(); EffectControls.endSync(); }
+        } finally { NativeScaleOption.endSync(); EffectControls.endSync(); SpatialWorld.endSync(); }
         last=List.of(); settled=0;
     }
     void init(Screen s) {
@@ -66,7 +66,7 @@ final class SodiumAutoApply {
         if(!isSodium(mc.screen)) { screen=null; config=null; slots=List.of(); settled=0; last=List.of(); return; }
         try {
             if(!connect()) return;
-            if(screen!=mc.screen||(NativeScaleOption.needsSync()||EffectControls.needsSync())) { sync(); screen=mc.screen; }
+            if(screen!=mc.screen||(NativeScaleOption.needsSync()||EffectControls.needsSync()||SpatialWorld.needsSync())) { sync(); screen=mc.screen; }
             var values=new ArrayList<Integer>();
             boolean dirty=false;
             for(var s:slots) { boolean d=s.dirty(); dirty|=d; values.add(d?s.value():-1); }
@@ -77,7 +77,7 @@ final class SodiumAutoApply {
             if(!values.equals(last)) { last=List.copyOf(values); settled=0; return; }
             if(++settled>=3) {
                 for(var s:slots) if(s.dirty()) apply.invoke(config,s.id);
-                if((NativeScaleOption.needsSync()||EffectControls.needsSync())) sync();
+                if((NativeScaleOption.needsSync()||EffectControls.needsSync()||SpatialWorld.needsSync())) sync();
                 settled=0;
             }
         } catch(ReflectiveOperationException|RuntimeException|LinkageError e) { disable(e); }
