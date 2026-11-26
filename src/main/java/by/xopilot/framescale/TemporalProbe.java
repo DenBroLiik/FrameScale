@@ -10,10 +10,11 @@ import java.nio.charset.StandardCharsets;
 final class TemporalProbe {
     private static final int[] FORMATS={0x881a,0x822e,0x822f,0x8232};
     private static int start,end,program,width,height;
+    private static boolean cameraOnly;
     private static final int[] outputs=new int[4];
     private static final FrameStats samples=new FrameStats(120);
     static void resetSamples(){samples.clear();}
-    static void release(){cleanup();for(int i=0;i<4;i++){if(outputs[i]!=0)GL11.glDeleteTextures(outputs[i]);outputs[i]=0;}if(program!=0)GL20.glDeleteProgram(program);program=width=height=0;}
+    static void release(){cleanup();for(int i=0;i<4;i++){if(outputs[i]!=0)GL11.glDeleteTextures(outputs[i]);outputs[i]=0;}if(program!=0)GL20.glDeleteProgram(program);program=width=height=0;cameraOnly=false;}
     private static long deadline;
     private static String status="Not run";
     static String status(){return status;}
@@ -119,6 +120,7 @@ final class TemporalProbe {
             GL42.glMemoryBarrier(GL42.GL_SHADER_IMAGE_ACCESS_BARRIER_BIT|GL42.GL_TEXTURE_FETCH_BARRIER_BIT);
             GL33.glQueryCounter(end,GL33.GL_TIMESTAMP);
             deadline=System.nanoTime()+5_000_000_000L;
+            TemporalProbe.cameraOnly=cameraOnly;
             status="Dispatched "+w+"x"+h+" private outputs; timing pending; "+(cameraOnly?"camera-only reprojection":"identity reprojection");
             return status;
         }catch(IOException|RuntimeException|LinkageError e){status="Diagnostic rejected";throw e;}
