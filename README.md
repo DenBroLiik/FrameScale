@@ -1,6 +1,10 @@
-# FrameScale 0.8.0-alpha.4
+# FrameScale 0.8.0-alpha.5
 
 Экспериментальный client-side мод Minecraft 1.21.1 / NeoForge / Java 21. Использует штатный временной апскейлер Photon (не NVIDIA DLSS). Не содержит нативных библиотек и не меняет рендер до явной команды игрока. Iris используется через проверяемую рефлексию; API не гарантирован, при несовместимости команда сообщает об ошибке.
+
+## 0.8.0-alpha.5 — Photon temporal math validation
+
+Reads Photon TAAU view resolution, render scale, current/previous view and projection matrices, camera positions and raw taa_offset. Derives the active lower-left render extent, converts jitter using Photon’s TAAU scale rule, and calculates the current-to-previous clip transform. Matrix math and extent checks have dedicated Java tests. The computed values are diagnostic only; the compute dispatch remains identity/zero-jitter until the full render contract is validated. No DLSS activation.
 
 ## 0.8.0-alpha.4 — Cached diagnostic series
 

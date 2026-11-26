@@ -162,14 +162,22 @@ public final class PhotonCapture {
             float[] invMv=uniform(program,"gbufferModelViewInverse",GL20.GL_FLOAT_MAT4,16);
             float[] invProj=uniform(program,"gbufferProjectionInverse",GL20.GL_FLOAT_MAT4,16);
             boolean camera=(mv!=null||invMv!=null)&&(proj!=null||invProj!=null)&&pmv!=null&&pp!=null&&pos!=null&&prev!=null;
+            String temporal="Temporal math unavailable";
+            if(camera&&mv!=null&&proj!=null&&pmv!=null&&pp!=null&&pos!=null&&prev!=null&&jitter!=null&&view!=null){
+                var extent=PhotonTemporalMath.resolveExtent(view,settings.percent()/100f,c.w,c.h);
+                var jitterNdc=PhotonTemporalMath.jitterNdc(jitter,settings.percent()/100f);
+                var reprojection=PhotonTemporalMath.currentToPreviousClip(mv,proj,pmv,pp,pos,prev);
+                temporal="active extent="+extent.width()+"x"+extent.height()+" @ ("+extent.x()+","+extent.y()+")"
+                    +" | jitter NDC="+show(jitterNdc)+" | current-to-previous clip="+show(reprojection);
+            }
             uniforms="Current MV="+show(mv)+" | Current Projection="+show(proj)
                 +" | Inverse MV="+show(invMv)+" | Inverse Projection="+show(invProj)
                 +" | Previous MV="+show(pmv)+" | Previous Projection="+show(pp)
                 +" | Camera="+show(pos)+" | Previous camera="+show(prev)
-                +" | Raw taa_offset="+show(jitter)+" | view_res="+show(view);
+                +" | Raw taa_offset="+show(jitter)+" | view_res="+show(view)+" | "+temporal;
             finish("Photon composite4 candidate | colortex0 "+(alt?"alt":"main")+" "+c+" | depthtex0 candidate "+d
                 +" | configured TAAU "+settings.percent()+"% | camera uniforms "+(camera?"present":"incomplete")
-                +" | raw jitter "+show(jitter)+" | metadata only; no DLSS");
+                +" | "+temporal+" | metadata only; no DLSS");
         } catch(java.io.IOException|ReflectiveOperationException|RuntimeException|LinkageError e) {
             finish("Capture rejected: "+e.getClass().getSimpleName()+": "+e.getMessage());
         }
