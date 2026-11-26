@@ -25,7 +25,7 @@ status('Shader',shader,0x8B81);program=gl('CreateProgram',u)();gl('AttachShader'
 
 def loc(name):
     n=gl('GetUniformLocation',i,u,C.c_char_p)(program,name.encode());assert n>=0;return n
-def run(matrix,jitter=(0.,0.),origin=(1,1)):
+def run(matrix,hand_matrix=None,origin=(1,1)):
     w,h=11,7;rw,rh=7,5
     ids=(u*6)();gl('CreateTextures',None,u,i,C.POINTER(u))(0x0DE1,6,ids)
     formats=[0x8C3A,0x8CAC,0x881A,0x822E,0x822F,0x8232]
@@ -33,7 +33,7 @@ def run(matrix,jitter=(0.,0.),origin=(1,1)):
         gl('TextureStorage2D',None,u,i,u,i,i)(ids[n],1,fmt,w if n<2 else rw,h if n<2 else rh)
         for param in (0x2801,0x2800):gl('TextureParameteri',None,u,u,i)(ids[n],param,0x2600)
     colors=[v for y in range(h) for x in range(w) for v in (float(x+1),float(y+1),.5)]
-    depths=[.5]*(w*h);depths[2*w+3]=1.
+    depths=[.7]*(w*h);depths[2*w+3]=1.;depths[3*w+4]=.5
     upload=gl('TextureSubImage2D',None,u,i,i,i,i,i,u,u,p)
     upload(ids[0],0,0,0,w,h,0x1907,0x1406,(f*len(colors))(*colors))
     upload(ids[1],0,0,0,w,h,0x1902,0x1406,(f*len(depths))(*depths))
@@ -41,8 +41,8 @@ def run(matrix,jitter=(0.,0.),origin=(1,1)):
     for n in range(4):gl('BindImageTexture',None,u,u,i,b,i,u,u)(n,ids[n+2],0,0,0,0x88B9,formats[n+2])
     gl('Uniform2i',None,i,i,i)(loc('sourceOrigin'),*origin)
     gl('Uniform2i',None,i,i,i)(loc('renderExtent'),rw,rh)
-    gl('Uniform2f',None,i,f,f)(loc('currentJitterNdc'),*jitter)
     gl('UniformMatrix4fv',None,i,i,b,C.POINTER(f))(loc('currentToPreviousClip'),1,0,(f*16)(*matrix))
+    gl('UniformMatrix4fv',None,i,i,b,C.POINTER(f))(loc('currentToPreviousHandClip'),1,0,(f*16)(*(hand_matrix or identity)))
     gl('DispatchCompute',None,u,u,u)((rw+7)//8,(rh+7)//8,1)
     gl('MemoryBarrier',None,u)(0x20|0x100|0x8)
     gl('PixelStorei',None,u,i)(0x0D05,1)
@@ -57,21 +57,22 @@ def run(matrix,jitter=(0.,0.),origin=(1,1)):
 identity=[1.,0.,0.,0.,0.,1.,0.,0.,0.,0.,1.,0.,0.,0.,0.,1.]
 c,d,m,v=run(identity)
 assert c[:4]==[2.,2.,.5,1.] and c[-4:]==[8.,6.,.5,1.]
-assert d[9]==1. and v[9]==0 and sum(v)==34
+assert d[9]==1. and v[9]==0 and v[17]==3 and sum(1 for x in v if x&1)==34
 assert not any(m)
 translated=identity.copy();translated[12]=2/7;translated[13]=2/5
 c,d,m,v=run(translated)
 assert v[0]==1 and abs(m[0]-1)<.002 and abs(m[1]-1)<.002
-assert v[6]==0 and v[28]==0 and m[12:14]==[0.,0.]
-c,d,m,v=run(identity,(.1,-.1))
-assert not any(m) and v[0]==1
+assert v[17]==3 and m[17*2:17*2+2]==[0.,0.] and v[9]==0
+assert v[6]==0 and v[28]==0
+c,d,m,v=run(identity)
+assert not any(m) and v[0]==1 and v[17]==3
 bad=identity.copy();bad[15]=-1.
 c,d,m,v=run(bad)
-assert not any(v) and not any(m) and c[:4]==[2.,2.,.5,1.]
+assert sum(1 for x in v if x&1)==1 and v[17]==3 and not any(m) and c[:4]==[2.,2.,.5,1.]
 c,d,m,v=run(identity,origin=(9,6))
 assert v[0]==1 and v[1]==1 and v[2]==0 and c[8:12]==[0.,0.,0.,1.] and d[2]==1.
 gl('UseProgram',None,u)(0)
 gl('DeleteProgram',None,u)(program);gl('DeleteShader',None,u)(shader)
 current(display,None,None,None)
 bind(E,'eglDestroyContext',u,p,p)(display,context);bind(E,'eglTerminate',u,p)(display)
-print('Temporal inputs GPU tests PASS: HDR crop, depth, motion, jitter, invalid projection, bounds')
+print('Temporal inputs GPU tests PASS: HDR crop, depth, camera motion, hand camera lock, invalid projection, bounds')

@@ -60,11 +60,13 @@ final class TemporalProbe {
         }finally{GL13.glActiveTexture(active);}
         return unit;
     }
-    static String run(int irisProgram,int color,int depth,int w,int h) throws IOException {
+    static String run(int irisProgram,int color,int depth,int w,int h,float[] worldReprojection,float[] handReprojection,boolean cameraOnly) throws IOException {
         RenderSystem.assertOnRenderThread();
         if(pending())throw new IllegalStateException("Timing pending");
         if(!PhotonCaptureContract.extent(w,h)||(long)w*h*17>128L*1024*1024)
             throw new IllegalArgumentException("Diagnostic allocation exceeds budget");
+        if(!PhotonCaptureContract.finite(worldReprojection,16)||!PhotonCaptureContract.finite(handReprojection,16))
+            throw new IllegalArgumentException("Invalid reprojection matrices");
         if(GL11.glGetInteger(GL42.GL_MAX_IMAGE_UNITS)<4)throw new IllegalStateException("Four image units required");
         for(int tex:new int[]{color,depth})
             if(GL45.glGetTextureLevelParameteri(tex,0,GL11.GL_TEXTURE_WIDTH)<w
@@ -97,10 +99,14 @@ final class TemporalProbe {
             GL20.glUniform1i(GL20.glGetUniformLocation(program,"sceneDepth"),du);
             GL20.glUniform2i(GL20.glGetUniformLocation(program,"sourceOrigin"),0,0);
             GL20.glUniform2i(GL20.glGetUniformLocation(program,"renderExtent"),w,h);
-            GL20.glUniform2f(GL20.glGetUniformLocation(program,"currentJitterNdc"),0,0);
+            int worldLoc=GL20.glGetUniformLocation(program,"currentToPreviousClip");
+            int handLoc=GL20.glGetUniformLocation(program,"currentToPreviousHandClip");
+            if(worldLoc<0||handLoc<0)throw new IllegalStateException("Reprojection uniforms missing");
             try(var stack=MemoryStack.stackPush()){
-                var mat=stack.floats(1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1);
-                GL20.glUniformMatrix4fv(GL20.glGetUniformLocation(program,"currentToPreviousClip"),false,mat);
+                var world=stack.floats(worldReprojection);
+                var hand=stack.floats(handReprojection);
+                GL20.glUniformMatrix4fv(worldLoc,false,world);
+                GL20.glUniformMatrix4fv(handLoc,false,hand);
             }
             int gx=(w+7)/8,gy=(h+7)/8;
             if(gx>GL30.glGetIntegeri(GL43.GL_MAX_COMPUTE_WORK_GROUP_COUNT,0)||gy>GL30.glGetIntegeri(GL43.GL_MAX_COMPUTE_WORK_GROUP_COUNT,1))
@@ -113,7 +119,7 @@ final class TemporalProbe {
             GL42.glMemoryBarrier(GL42.GL_SHADER_IMAGE_ACCESS_BARRIER_BIT|GL42.GL_TEXTURE_FETCH_BARRIER_BIT);
             GL33.glQueryCounter(end,GL33.GL_TIMESTAMP);
             deadline=System.nanoTime()+5_000_000_000L;
-            status="Dispatched "+w+"x"+h+" private outputs; timing pending; identity motion";
+            status="Dispatched "+w+"x"+h+" private outputs; timing pending; "+(cameraOnly?"camera-only reprojection":"identity reprojection");
             return status;
         }catch(IOException|RuntimeException|LinkageError e){status="Diagnostic rejected";throw e;}
         finally{

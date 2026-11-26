@@ -146,6 +146,7 @@ public final class FrameScale {
                 .then(Commands.literal("start").executes(c->message(PhotonCapture.start(s->message(s)))))
                 .then(Commands.literal("report").executes(c->message(PhotonCapture.report())))
                 .then(Commands.literal("uniforms").executes(c->message(PhotonCapture.uniformReport())))
+                .then(Commands.literal("reproject").executes(c->message(PhotonCapture.reproject(s->message(s)))))
                 .then(Commands.literal("gpu")
                     .executes(c->message(PhotonCapture.probeReport()))
                     .then(Commands.argument("width",IntegerArgumentType.integer(1,8192))

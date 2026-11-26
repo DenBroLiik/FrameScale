@@ -14,6 +14,13 @@ public final class PhotonTemporalMathTest {
         near(m[12],2);near(m[13],1);near(m[14],-3);
         float[] product=PhotonTemporalMath.multiply(m,PhotonTemporalMath.invert(m));
         for(int i=0;i<16;i++)near(product[i],id[i]);
+        float[] hand=PhotonTemporalMath.currentToPreviousHandClipFromInverse(id,id,id,id);
+        for(int i=0;i<16;i++)near(hand[i],id[i]);
+        float[] world=PhotonTemporalMath.currentToPreviousClipFromInverse(id,id,id,id,
+            new float[]{4,0,0},new float[]{1,0,0});
+        near(world[12],3);
+        float[] handNoCamera=PhotonTemporalMath.currentToPreviousHandClipFromInverse(id,id,id,id);
+        near(handNoCamera[12],0);
         boolean failed=false;try{PhotonTemporalMath.resolveExtent(new float[]{1920,1200},1.1f,1920,1200);}catch(IllegalArgumentException ex){failed=true;}check(failed);
         failed=false;try{PhotonTemporalMath.invert(new float[16]);}catch(IllegalArgumentException ex){failed=true;}check(failed);
         failed=false;try{PhotonTemporalMath.resolveExtent(new float[]{Float.NaN,1200},.5f,1920,1200);}catch(IllegalArgumentException ex){failed=true;}check(failed);

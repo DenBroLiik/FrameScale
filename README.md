@@ -1,10 +1,16 @@
-# FrameScale 0.8.0-alpha.5
+# FrameScale 0.8.0-alpha.6
 
 Экспериментальный client-side мод Minecraft 1.21.1 / NeoForge / Java 21. Использует штатный временной апскейлер Photon (не NVIDIA DLSS). Не содержит нативных библиотек и не меняет рендер до явной команды игрока. Iris используется через проверяемую рефлексию; API не гарантирован, при несовместимости команда сообщает об ошибке.
 
+## 0.8.0-alpha.6 — Camera reprojection input probe
+
+Adds `/framescale capture reproject`: at the next verified Photon composite4 pass it derives the lower-left TAAU render extent from `view_res × TAAU_RENDER_SCALE`, builds world and hand current-to-previous clip transforms from Photon uniforms, and dispatches private HDR/depth/motion/validity outputs. Motion is previous-minus-current in render pixels. Validity bit 0 means projected coordinate is on-screen; bit 1 marks Photon hand-depth pixels. Camera translation is suppressed for the hand layer, matching Photon reprojection. This is camera-only motion for static opaque geometry and hand camera lock; moving entities, block animation, particles, translucency, DH/LOD and reactive/occlusion masks are not solved. The original Photon draw and TAAU remain untouched; no NGX or presentation integration.
+
+The exact compute shader passed a local OpenGL 4.5 execution test on the laptop NVIDIA GeForce RTX 3050 6GB Laptop GPU: packed HDR crop, depth, camera translation, hand camera lock, invalid projection and out-of-bounds handling. Java matrix tests and Rust tests pass. Full NeoForge build/runtime hook remains to be checked; the GPU test dispatches synthetic textures, not Minecraft's live Photon frame.
+
 ## 0.8.0-alpha.5 — Photon temporal math validation
 
-Reads Photon TAAU view resolution, render scale, current/previous view and projection matrices, camera positions and raw taa_offset. Derives the active lower-left render extent, converts jitter using Photon’s TAAU scale rule, and calculates the current-to-previous clip transform. Matrix math and extent checks have dedicated Java tests. The computed values are diagnostic only; the compute dispatch remains identity/zero-jitter until the full render contract is validated. No DLSS activation.
+Reads Photon TAAU view resolution, render scale, current/previous view and projection matrices, camera positions and raw taa_offset. Derives the active lower-left render extent, converts jitter using Photon’s TAAU scale rule, and calculates the current-to-previous clip transform. Matrix math and extent checks have dedicated Java tests. At alpha.5 the computed values were diagnostic only; alpha.6 adds an opt-in private-output camera reprojection probe. It does not replace Photon TAAU or feed NGX. No DLSS activation.
 
 ## 0.8.0-alpha.4 — Cached diagnostic series
 

@@ -19,6 +19,13 @@ public final class PhotonCapture {
     private static volatile boolean armed;
     private static long deadline;
     private static int probeWidth,probeHeight,remaining;
+    private static boolean reprojectionProbe;
+    static String reproject(Consumer<String> message){
+        if(armed||TemporalProbe.pending())return "Capture or timing already pending";
+        String result=start(message);
+        if(armed){TemporalProbe.resetSamples();reprojectionProbe=true;}
+        return result;
+    }
     static String series(int w,int h,int count,Consumer<String> message){
         if(armed||TemporalProbe.pending())return "Capture or timing already pending";
         String result=probe(w,h,message);
@@ -28,7 +35,7 @@ public final class PhotonCapture {
     static String probe(int w,int h,Consumer<String> message){
         if(armed||TemporalProbe.pending())return "Capture or timing already pending";
         String result=start(message);
-        if(armed){TemporalProbe.resetSamples();probeWidth=w;probeHeight=h;remaining=1;}
+        if(armed){TemporalProbe.resetSamples();probeWidth=w;probeHeight=h;remaining=1;reprojectionProbe=false;}
         return result;
     }
     static String probeReport(){return TemporalProbe.status();}
@@ -65,7 +72,7 @@ public final class PhotonCapture {
             finish("Capture expired or world changed");
     }
     private static void finish(String s){
-        armed=false;world=null;settings=null;probeWidth=probeHeight=remaining=0;last=s;
+        armed=false;world=null;settings=null;probeWidth=probeHeight=remaining=0;reprojectionProbe=false;last=s;
         var callback=reply;reply=null;
         if(callback!=null) Minecraft.getInstance().execute(()->callback.accept(s));
     }
@@ -144,9 +151,9 @@ public final class PhotonCapture {
             var c=texture(colorId);var d=texture(depthId);
             if(!PhotonCaptureContract.colorFormat(c.format)||!PhotonCaptureContract.depthFormat(d.format))
                 throw new IllegalStateException("Unknown input format");
-            if(probeWidth>0){
+            if(probeWidth>0&&!reprojectionProbe){
                 if(TemporalProbe.pending())return;
-                String result=TemporalProbe.run(program,colorId,depthId,probeWidth,probeHeight);
+                String result=TemporalProbe.run(program,colorId,depthId,probeWidth,probeHeight,PhotonTemporalMath.identity(),PhotonTemporalMath.identity(),false);
                 if(--remaining==0)finish(result+" | series dispatched");
                 return;
             }
@@ -163,18 +170,36 @@ public final class PhotonCapture {
             float[] invProj=uniform(program,"gbufferProjectionInverse",GL20.GL_FLOAT_MAT4,16);
             boolean camera=(mv!=null||invMv!=null)&&(proj!=null||invProj!=null)&&pmv!=null&&pp!=null&&pos!=null&&prev!=null;
             String temporal="Temporal math unavailable";
-            if(camera&&mv!=null&&proj!=null&&pmv!=null&&pp!=null&&pos!=null&&prev!=null&&jitter!=null&&view!=null){
-                var extent=PhotonTemporalMath.resolveExtent(view,settings.percent()/100f,c.w,c.h);
+            float[] worldReprojection=null,handReprojection=null;
+            PhotonTemporalMath.Extent extent=null;
+            if(camera&&pmv!=null&&pp!=null&&pos!=null&&prev!=null&&jitter!=null&&view!=null){
+                extent=PhotonTemporalMath.resolveExtent(view,settings.percent()/100f,c.w,c.h);
                 var jitterNdc=PhotonTemporalMath.jitterNdc(jitter,settings.percent()/100f);
-                var reprojection=PhotonTemporalMath.currentToPreviousClip(mv,proj,pmv,pp,pos,prev);
+                worldReprojection=PhotonTemporalMath.currentToPreviousClipFromInverse(
+                    invMv!=null?invMv:PhotonTemporalMath.invert(mv),invProj!=null?invProj:PhotonTemporalMath.invert(proj),pmv,pp,pos,prev);
+                handReprojection=PhotonTemporalMath.currentToPreviousHandClipFromInverse(
+                    invMv!=null?invMv:PhotonTemporalMath.invert(mv),invProj!=null?invProj:PhotonTemporalMath.invert(proj),pmv,pp);
                 temporal="active extent="+extent.width()+"x"+extent.height()+" @ ("+extent.x()+","+extent.y()+")"
-                    +" | jitter NDC="+show(jitterNdc)+" | current-to-previous clip="+show(reprojection);
+                    +" | jitter NDC="+show(jitterNdc)+" | world reprojection="+show(worldReprojection)
+                    +" | hand reprojection="+show(handReprojection);
             }
             uniforms="Current MV="+show(mv)+" | Current Projection="+show(proj)
                 +" | Inverse MV="+show(invMv)+" | Inverse Projection="+show(invProj)
                 +" | Previous MV="+show(pmv)+" | Previous Projection="+show(pp)
                 +" | Camera="+show(pos)+" | Previous camera="+show(prev)
                 +" | Raw taa_offset="+show(jitter)+" | view_res="+show(view)+" | "+temporal;
+            if(reprojectionProbe){
+                reprojectionProbe=false;
+                if(extent==null||worldReprojection==null||handReprojection==null)
+                    throw new IllegalStateException("Photon camera reprojection uniforms incomplete");
+                if(extent.width()>c.w||extent.height()>c.h)
+                    throw new IllegalStateException("Photon active TAAU extent exceeds source");
+                String result=TemporalProbe.run(program,colorId,depthId,extent.width(),extent.height(),
+                    worldReprojection,handReprojection,true);
+                finish("Photon camera reprojection dispatched | "+extent.width()+"x"+extent.height()
+                    +" | "+result+" | static geometry + hand; dynamic objects unsupported");
+                return;
+            }
             finish("Photon composite4 candidate | colortex0 "+(alt?"alt":"main")+" "+c+" | depthtex0 candidate "+d
                 +" | configured TAAU "+settings.percent()+"% | camera uniforms "+(camera?"present":"incomplete")
                 +" | "+temporal+" | metadata only; no DLSS");

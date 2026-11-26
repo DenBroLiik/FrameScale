@@ -1,7 +1,5 @@
 package by.xopilot.framescale;
 
-import java.util.Arrays;
-
 /** Photon TAAU coordinate and camera reprojection math. Matrices are OpenGL column-major. */
 final class PhotonTemporalMath {
     private PhotonTemporalMath() {}
@@ -33,19 +31,36 @@ final class PhotonTemporalMath {
      */
     static float[] currentToPreviousClip(float[] currentModelView,float[] currentProjection,
             float[] previousModelView,float[] previousProjection,float[] camera,float[] previousCamera) {
-        requireMatrix(currentModelView);requireMatrix(currentProjection);
+        return currentToPreviousClipFromInverse(invert(currentModelView),invert(currentProjection),
+            previousModelView,previousProjection,camera,previousCamera);
+    }
+
+    static float[] currentToPreviousClipFromInverse(float[] currentModelViewInverse,float[] currentProjectionInverse,
+            float[] previousModelView,float[] previousProjection,float[] camera,float[] previousCamera) {
+        requireMatrix(currentModelViewInverse);requireMatrix(currentProjectionInverse);
         requireMatrix(previousModelView);requireMatrix(previousProjection);
         if(camera==null||camera.length!=3||previousCamera==null||previousCamera.length!=3
             ||!finite(camera)||!finite(previousCamera)) throw new IllegalArgumentException("Invalid camera position");
-        float[] invMv=invert(currentModelView),invProj=invert(currentProjection);
         float[] translation=identity();
         translation[12]=camera[0]-previousCamera[0];
         translation[13]=camera[1]-previousCamera[1];
         translation[14]=camera[2]-previousCamera[2];
+        return compose(currentModelViewInverse,currentProjectionInverse,previousModelView,previousProjection,translation);
+    }
+
+    static float[] currentToPreviousHandClipFromInverse(float[] currentModelViewInverse,float[] currentProjectionInverse,
+            float[] previousModelView,float[] previousProjection) {
+        requireMatrix(currentModelViewInverse);requireMatrix(currentProjectionInverse);
+        requireMatrix(previousModelView);requireMatrix(previousProjection);
+        return compose(currentModelViewInverse,currentProjectionInverse,previousModelView,previousProjection,identity());
+    }
+
+    private static float[] compose(float[] currentModelViewInverse,float[] currentProjectionInverse,
+            float[] previousModelView,float[] previousProjection,float[] cameraTranslation) {
         float[] result=multiply(previousProjection,previousModelView);
-        result=multiply(result,translation);
-        result=multiply(result,invMv);
-        result=multiply(result,invProj);
+        result=multiply(result,cameraTranslation);
+        result=multiply(result,currentModelViewInverse);
+        result=multiply(result,currentProjectionInverse);
         if(!finite(result))throw new IllegalArgumentException("Non-finite reprojection matrix");
         return result;
     }
