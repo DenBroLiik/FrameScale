@@ -1,6 +1,10 @@
-# FrameScale 0.6.0-alpha.7
+# FrameScale 0.7.0-alpha.1
 
 Экспериментальный client-side мод Minecraft 1.21.1 / NeoForge / Java 21. Использует штатный временной апскейлер Photon (не NVIDIA DLSS). Не содержит нативных библиотек и не меняет рендер до явной команды игрока. Iris используется через проверяемую рефлексию; API не гарантирован, при несовместимости команда сообщает об ошибке.
+
+## 0.7.0-alpha.1 — Optional NGX adapter source
+
+Added native/dlss: an external-SDK C++ Vulkan adapter with NGX initialization, capability query, SDK-selected optimal render extent, Super Resolution feature creation/evaluation and explicit teardown. Fixed-resolution HDR contract with depth, motion, jitter, pre-exposure and history reset. No SDK binaries or code copied into the project. Build requires a separately obtained authorized SDK; ordinary CI tests only the SDK-independent frame contract. Adapter is not yet built against the SDK, linked to JNI, or executed on NVIDIA. No new GUI algorithm or in-game FPS improvement claimed. See native/dlss/README.md.
 
 ## 0.6.0-alpha.7 — Optional JNI diagnostic bridge
 

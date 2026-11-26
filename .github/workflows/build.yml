@@ -55,6 +55,10 @@ jobs:
           sh native/jni/build.sh
           java -cp build/native/classes by.xopilot.framescale.NativeBridgeTest missing
           java -Dframescale.native.path="$PWD/build/native/libframescale_native.so" -cp build/native/classes by.xopilot.framescale.NativeBridgeTest loaded
+      - name: DLSS frame contract (SDK-independent)
+        run: |
+          c++ -std=c++20 -O2 -Wall -Wextra -Werror native/dlss/test_frame_contract.cpp -o /tmp/framescale-dlss-contract
+          /tmp/framescale-dlss-contract
       - name: Compile mod
         run: gradle --no-daemon build
       - uses: actions/upload-artifact@v4

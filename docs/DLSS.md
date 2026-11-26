@@ -2,6 +2,10 @@
 
 FrameScale uses Photon TAAU, not DLSS. No fake DLSS switch is exposed. Native Linux DLSS Super Resolution requires an NVIDIA-supported Vulkan/NGX implementation; Minecraft 1.21.1 Iris renders using OpenGL. No replacement of GPUTape/Sodium/Iris or forced VulkanMod migration is acceptable.
 
+## Progress in 0.7.0-alpha.1
+
+Source-only NGX adapter under native/dlss uses actual NVIDIA Vulkan Super Resolution API calls for initialization, optimal dimensions, feature creation, evaluation and cleanup. Optional external SDK, no vendored SDK material. SDK-independent frame contract tests are in CI; SDK build/link and GPU execution still pending. Caller-owned Vulkan context, no JNI or Photon hookup yet.
+
 ## Progress in 0.6.0-alpha.7
 
 Explicitly loaded Linux JNI diagnostic bridge compares actual Minecraft GL device/driver UUIDs to Vulkan physical devices, checks candidate external formats and semaphore export support. No native context creation or GL calls on worker; no logical device, shared allocation in game or NGX. Hardware roundtrip still required.
