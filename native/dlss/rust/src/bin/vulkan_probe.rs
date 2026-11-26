@@ -1,6 +1,6 @@
 #[cfg(feature="vulkan")]
 fn main(){
-    use framescale_dlss::vulkan::InstanceContext;
+    use framescale_dlss::{Extent,shared::{ImageKind,SharedImage},vulkan::InstanceContext};
     fn hex(u:[u8;16])->String{u.iter().map(|b|format!("{b:02x}")).collect()}
     fn uuid(s:&str)->Option<[u8;16]>{
         if s.len()!=32||!s.is_ascii(){return None}
@@ -15,17 +15,33 @@ fn main(){
         }
         let device=match args.as_slice(){
             []=>return Ok(()),
-            [mode] if mode=="--smoke"=>ctx.create_smoke(),
-            [mode,gl,driver] if mode=="--match"=>{
+            [mode] if mode=="--smoke"||mode=="--resources"=>ctx.create_smoke(),
+            [mode,gl,driver] if mode=="--match"||mode=="--export"=>{
                 let gl=uuid(gl).ok_or("invalid GL UUID")?;
                 let driver=uuid(driver).ok_or("invalid GL driver UUID")?;
                 ctx.create_matched(&[gl],driver,&[])
             }
-            _=>return Err("usage: vulkan_probe [--smoke | --match GL_UUID DRIVER_UUID]".into()),
+            _=>return Err("usage: vulkan_probe [--smoke | --resources | --match GL_UUID DRIVER_UUID | --export GL_UUID DRIVER_UUID]".into()),
         }.map_err(|e|format!("{e:?}"))?;
         // No live resources or previous submissions exist at this point.
         unsafe{device.smoke_submit()}.map_err(|e|format!("{e:?}"))?;
         println!("PASS: logical device + queue + command buffer + fence on {}",device.adapter().name);
+        if args[0]=="--resources"||args[0]=="--export"{
+            let external=args[0]=="--export";
+            for kind in [ImageKind::Rgba8,ImageKind::HdrInput,ImageKind::HdrOutput,ImageKind::DepthCopy,ImageKind::Motion]{
+                let size=Extent{w:64,h:48};
+                let mut image=if external{SharedImage::external(&device,size,kind)}else{SharedImage::local(&device,size,kind)}
+                    .map_err(|e|format!("{e:?}"))?;
+                if external{
+                    let fds=image.export().map_err(|e|format!("{e:?}"))?;
+                    assert!(fds.allocation_size>0);
+                    drop(fds); // No import; Rust closes all three descriptors.
+                }
+                println!("PASS: {:?} allocation {} bytes; external export={}",kind,image.allocation_size(),external);
+                // No handles have been submitted or imported.
+                unsafe{image.close()};
+            }
+        }
         unsafe{device.close()};
         Ok(())
     };

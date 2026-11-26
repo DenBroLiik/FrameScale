@@ -64,6 +64,7 @@ jobs:
           cargo test --manifest-path native/dlss/rust/Cargo.toml --locked --features vulkan
           cargo build --manifest-path native/dlss/rust/Cargo.toml --locked --features vulkan --bin vulkan_probe
           timeout 20s native/dlss/rust/target/debug/vulkan_probe --smoke
+          timeout 20s native/dlss/rust/target/debug/vulkan_probe --resources
       - name: Compile mod
         run: gradle --no-daemon build
       - uses: actions/upload-artifact@v4

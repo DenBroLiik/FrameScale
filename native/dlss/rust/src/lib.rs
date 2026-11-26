@@ -165,6 +165,8 @@ impl<D:Driver> Session<D> {
 pub mod ngx;
 #[cfg(feature="vulkan")]
 pub mod vulkan;
+#[cfg(all(feature="vulkan",target_os="linux"))]
+pub mod shared;
 
 #[cfg(test)]
 mod tests {

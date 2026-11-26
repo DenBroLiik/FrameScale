@@ -150,7 +150,7 @@ impl InstanceContext {
         let queue=unsafe{device.get_device_queue(family,0)};
         if queue==vk::Queue::null(){unsafe{device.destroy_device(None)};return Err(VkError::Invalid("null queue"))}
         Ok(DeviceContext{instance:ManuallyDrop::new(self),device,physical:a.physical,queue,family,
-            adapter:a.clone(),_thread:PhantomData})
+            adapter:a.clone(),enabled_extensions:names,_thread:PhantomData})
     }
 }
 impl Drop for InstanceContext {
@@ -164,10 +164,19 @@ impl Drop for InstanceContext {
 pub struct DeviceContext {
     instance:ManuallyDrop<InstanceContext>,device:Device,
     physical:vk::PhysicalDevice,queue:vk::Queue,family:u32,
-    adapter:Adapter,_thread:PhantomData<Rc<()>>,
+    adapter:Adapter,enabled_extensions:Vec<CString>,_thread:PhantomData<Rc<()>>,
 }
 impl DeviceContext {
     pub fn adapter(&self)->&Adapter{&self.adapter}
+    pub(crate) fn raw_instance(&self)->&Instance{&self.instance.instance}
+    pub(crate) fn raw_device(&self)->&Device{&self.device}
+    pub(crate) fn physical(&self)->vk::PhysicalDevice{self.physical}
+    pub(crate) fn fd_enabled(&self)->bool{
+        FD_EXTENSIONS.iter().all(|n|self.enabled_extensions.iter().any(|s|s.as_c_str()==*n))
+    }
+    pub(crate) fn supports_export(&self,format:vk::Format,usage:vk::ImageUsageFlags)->bool{
+        self.instance.exportable(self.physical,format,usage)
+    }
     pub fn handles(&self)->(u64,u64,u64,u64){
         (self.instance.instance.handle().as_raw(),self.physical.as_raw(),self.device.handle().as_raw(),self.queue.as_raw())
     }

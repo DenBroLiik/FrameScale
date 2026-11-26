@@ -1,6 +1,10 @@
-# FrameScale 0.7.0-alpha.3
+# FrameScale 0.7.0-alpha.4
 
 Экспериментальный client-side мод Minecraft 1.21.1 / NeoForge / Java 21. Использует штатный временной апскейлер Photon (не NVIDIA DLSS). Не содержит нативных библиотек и не меняет рендер до явной команды игрока. Iris используется через проверяемую рефлексию; API не гарантирован, при несовместимости команда сообщает об ошибке.
+
+## 0.7.0-alpha.4 — Rust shared GPU allocations
+
+Rust ash resource module allocates dedicated Vulkan images and views for RGBA8, HDR input/output, depth copy and motion vectors; optional external opaque FD memory and two binary semaphores per image. Allocation rollback handles partial failures; exported FDs use Rust OwnedFd. CI exercises all five local resource types on software Vulkan. Explicit --export mode uses matched NVIDIA UUIDs and verifies FD export only. No GL import, ownership barriers, GPU interop roundtrip or NGX execution in the Rust path yet. The existing C diagnostic remains available. No gameplay changes.
 
 ## 0.7.0-alpha.3 — Rust Vulkan Device Manager
 
