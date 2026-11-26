@@ -12,9 +12,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 /**
- * LDR RGBA8 spatial compute backend. Only caller-owned immutable 2D textures on the
+ * LDR RGBA8 spatial compute backend. Only scoped RGBA8 2D textures on the
  * current render context are accepted. No temporal inputs, framebuffer ownership,
- * CPU readback or allocation per output pixel. Used by the experimental world renderer via staging textures.
+ * CPU readback or allocation per output pixel. Supports direct and immutable staging paths.
  */
 final class SpatialUpscaler implements AutoCloseable {
     private static final String RESOURCE="/assets/framescale/shaders/spatial.comp";
@@ -62,11 +62,11 @@ final class SpatialUpscaler implements AutoCloseable {
             GL42.glBindImageTexture(unit,name,level,layered,layer,access,format);
         }
     }
-    private static Resolution texture(int id) {
+    private static Resolution texture(int id,boolean direct) {
         if(id<=0||!GL11.glIsTexture(id)) throw new IllegalArgumentException("Invalid texture");
-        if(GL45.glGetTextureParameteri(id,GL42.GL_TEXTURE_IMMUTABLE_FORMAT)==0
+        if((!direct&&GL45.glGetTextureParameteri(id,GL42.GL_TEXTURE_IMMUTABLE_FORMAT)==0)
             ||GL45.glGetTextureLevelParameteri(id,0,GL11.GL_TEXTURE_INTERNAL_FORMAT)!=GL11.GL_RGBA8)
-            throw new IllegalArgumentException("Expected immutable RGBA8 texture");
+            throw new IllegalArgumentException("Expected compatible RGBA8 texture");
         return new Resolution(GL45.glGetTextureLevelParameteri(id,0,GL11.GL_TEXTURE_WIDTH),
             GL45.glGetTextureLevelParameteri(id,0,GL11.GL_TEXTURE_HEIGHT));
     }
@@ -76,11 +76,17 @@ final class SpatialUpscaler implements AutoCloseable {
      * result visible to subsequent texture sampling, image access and texture readback.
      */
     void dispatch(int input,int output,float strength) {
+        dispatch(input,output,strength,false);
+    }
+    void dispatchDirect(int input,int output,float strength) {
+        dispatch(input,output,strength,true);
+    }
+    private void dispatch(int input,int output,float strength,boolean direct) {
         RenderSystem.assertOnRenderThread();
         if(program==0) throw new IllegalStateException("Backend closed");
         if(input==output||!Float.isFinite(strength)||strength<0||strength>1)
             throw new IllegalArgumentException("Aliased textures or invalid strength");
-        Resolution src=texture(input),dst=texture(output);
+        Resolution src=texture(input,direct),dst=texture(output,direct);
         if(dst.width()<src.width()||dst.height()<src.height()) throw new IllegalArgumentException("Upscale only");
         int gx=(dst.width()+7)/8,gy=(dst.height()+7)/8;
         if(gx>GL30.glGetIntegeri(GL43.GL_MAX_COMPUTE_WORK_GROUP_COUNT,0)
@@ -93,6 +99,9 @@ final class SpatialUpscaler implements AutoCloseable {
             GL20.glUniform1f(strengthLocation,strength);
             GL42.glBindImageTexture(0,input,0,false,0,GL15_READ_ONLY,GL11.GL_RGBA8);
             GL42.glBindImageTexture(1,output,0,false,0,GL15_WRITE_ONLY,GL11.GL_RGBA8);
+            if(direct && (GL30.glGetIntegeri(GL42.GL_IMAGE_BINDING_NAME,0)!=input
+                ||GL30.glGetIntegeri(GL42.GL_IMAGE_BINDING_NAME,1)!=output))
+                throw new IllegalStateException("Direct image binding failed");
             GL43.glDispatchCompute(gx,gy,1);
             GL42.glMemoryBarrier(GL42.GL_SHADER_IMAGE_ACCESS_BARRIER_BIT
                 |GL42.GL_TEXTURE_FETCH_BARRIER_BIT|GL42.GL_TEXTURE_UPDATE_BARRIER_BIT

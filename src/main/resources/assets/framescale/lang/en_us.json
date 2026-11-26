@@ -32,5 +32,5 @@
   "framescale.effects.tip.balanced": "Clouds, SSR and volumetrics; preserve shadow map and render scale.",
   "framescale.spatial.name": "Spatial (experimental)",
   "framescale.spatial.off": "Off / 100%",
-  "framescale.spatial.tip": "Reduced world target and GPU reconstruction before HUD. Base renderer only; Iris, GPUTape and competing framebuffer owners are blocked. 100% disables. Requires OpenGL 4.5."
+  "framescale.spatial.tip": "Experimental Spatial before HUD. Iris allowed only with shaders explicitly disabled. GPUTape, DH and competing renderers blocked. 100% disables. OpenGL 4.5."
 }

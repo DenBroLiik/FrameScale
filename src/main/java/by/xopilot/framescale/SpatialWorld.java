@@ -13,14 +13,14 @@ import org.lwjgl.opengl.GL45;
 import org.slf4j.LoggerFactory;
 
 /**
- * Experimental world-only scope. Owns a reduced color/depth target and immutable compute
+ * Experimental world-only scope. Owns a reduced color/depth target and optional immutable compute
  * staging textures; never resizes Minecraft's native target or changes the window size.
  */
 public final class SpatialWorld {
     private static final SpatialWorld INSTANCE=new SpatialWorld();
     private static int scale=100;
     private static String state="Off";
-    private static boolean syncing,needsSync;
+    private static boolean syncing,needsSync,irisPresent;
     private static RenderTarget scoped;
     private static boolean getterSeen,wrapperSeen;
     public static void getterSeen() { getterSeen=true; }
@@ -28,13 +28,19 @@ public final class SpatialWorld {
     private TextureTarget low;
     private SpatialUpscaler backend;
     private int input,output;
+    private boolean direct;
+    private final SpatialCost cost=new SpatialCost();
     private Resolution sourceSize,outputSize;
     private Object world;
     private SpatialWorld() {}
     static int load() { return scale; }
     static boolean available() {
-        try { return getterSeen && wrapperSeen && SpatialPolicy.blocked(CompatInventory.loaded()).isEmpty() && SpatialUpscaler.supported(); }
+        try { return getterSeen && wrapperSeen && blocked().isEmpty() && SpatialUpscaler.supported(); }
         catch(RuntimeException|LinkageError e) { return false; }
+    }
+    private static String blocked() {
+        var mods=CompatInventory.loaded();
+        return SpatialPolicy.blocked(mods,mods.containsKey("iris")&&IrisSpatialGuard.shadersDisabled());
     }
     static void beginSync() { syncing=true; }
     static void endSync() { syncing=false;needsSync=false; }
@@ -50,11 +56,12 @@ public final class SpatialWorld {
         if(requested==100) {
             scale=100;needsSync=true;state="Off";INSTANCE.release();return status();
         }
-        String blocked=SpatialPolicy.blocked(CompatInventory.loaded());
+        String blocked=blocked();
         if(!blocked.isEmpty()) { needsSync=true;return "Spatial mode blocked: "+blocked+" (unvalidated framebuffer integration)"; }
         if(!available()) {needsSync=true;return "Spatial mode requires OpenGL 4.5 and observed world/getter hooks (enter a world first)";}
         FrameScale.disableAuto();FrameScale.stopActiveProfiler();
         if(scale!=requested) INSTANCE.release();
+        irisPresent=CompatInventory.loaded().containsKey("iris");
         scale=requested;needsSync=true;state="Enabled; waiting for supported world frame";
         return status();
     }
@@ -65,6 +72,14 @@ public final class SpatialWorld {
         return Component.literal(new Resolution(w.getWidth(),w.getHeight()).transition(requested));
     }
     static String status() { return "Spatial "+scale+"% | "+state+" | independent RGBA8 backend; not DLSS"; }
+    static String costStart() {
+        var self=INSTANCE;
+        if(scale==100||self.low==null) return "Enable Spatial and render a world frame first";
+        self.cost.start((self.direct?"Direct":"Staging")+" "+self.sourceSize.label()+" → "+self.outputSize.label());
+        return "Spatial GPU timing enabled; one sample per eight active frames";
+    }
+    static String costReport() { return INSTANCE.cost.report(); }
+    static String costStop() { INSTANCE.cost.stop();return costReport(); }
     /** Only the render thread, and only inside the wrapped world call, sees this target. */
     public static RenderTarget scopedTarget() { return RenderSystem.isOnRenderThread()?scoped:null; }
     public static void render(Runnable original) {
@@ -73,6 +88,10 @@ public final class SpatialWorld {
         if(scoped!=null || scale==100 || mc.level==null || mc.screen!=null
             || mc.options.graphicsMode().get()==GraphicsStatus.FABULOUS || mc.gameRenderer.currentEffect()!=null) {
             if(scoped==null && scale!=100) state="Paused: menu, world or unsupported graphics/post effect";
+            original.run();return;
+        }
+        if(irisPresent&&!IrisSpatialGuard.shadersDisabled()) {
+            scale=100;needsSync=true;state="Stopped: Iris shaders enabled or unknown";self.release();
             original.run();return;
         }
         var nativeTarget=mc.getMainRenderTarget();
@@ -95,7 +114,7 @@ public final class SpatialWorld {
             scoped=null;
             try {
                 if(complete) {
-                    try { self.present(nativeTarget);state="Active "+self.sourceSize.label()+" → "+self.outputSize.label(); }
+                    try { self.present(nativeTarget);state="Active "+self.sourceSize.label()+" → "+self.outputSize.label()+(self.direct?" | direct":" | staging"); }
                     catch(RuntimeException|LinkageError e) {
                         try { self.blitFallback(nativeTarget); }
                         finally { self.fail(e); }
@@ -130,7 +149,8 @@ public final class SpatialWorld {
             release();
             backend=new SpatialUpscaler();
             low=new TextureTarget(src.width(),src.height(),true,Minecraft.ON_OSX);
-            input=allocate(src);output=allocate(dst);
+            direct=SpatialSelfTest.directSupported(backend);
+            if(!direct) { input=allocate(src);output=allocate(dst); }
             sourceSize=src;outputSize=dst;world=currentWorld;
         }
         if(formatOf(low.getColorTextureId())!=GL11.GL_RGBA8
@@ -144,10 +164,16 @@ public final class SpatialWorld {
             dst,GL11.GL_TEXTURE_2D,0,0,0,0,r.width(),r.height(),1);
     }
     private void present(RenderTarget target) {
-        copy(low.getColorTextureId(),input,sourceSize);
-        backend.dispatch(input,output,0.65f);
-        copy(output,target.getColorTextureId(),outputSize);
-        blit(target,GL11.GL_DEPTH_BUFFER_BIT,GL11.GL_NEAREST);
+        boolean timing=cost.begin();
+        try {
+            if(direct) backend.dispatchDirect(low.getColorTextureId(),target.getColorTextureId(),0.65f);
+            else {
+                copy(low.getColorTextureId(),input,sourceSize);
+                backend.dispatch(input,output,0.65f);
+                copy(output,target.getColorTextureId(),outputSize);
+            }
+            blit(target,GL11.GL_DEPTH_BUFFER_BIT,GL11.GL_NEAREST);
+        } finally { if(timing) cost.end(); }
     }
     private void blitFallback(RenderTarget target) {
         blit(target,GL11.GL_COLOR_BUFFER_BIT,GL11.GL_LINEAR);
@@ -173,10 +199,11 @@ public final class SpatialWorld {
     private void release() {
         // All call sites are render/client-thread callbacks; never release while redirected.
         if(scoped!=null) return;
+        cost.stop();
         if(backend!=null) {try {backend.close();} catch(RuntimeException|LinkageError ignored) {} backend=null;}
         if(low!=null) {try {low.destroyBuffers();} catch(RuntimeException|LinkageError ignored) {} low=null;}
         if(input!=0) {GL11.glDeleteTextures(input);input=0;}
         if(output!=0) {GL11.glDeleteTextures(output);output=0;}
-        sourceSize=outputSize=null;world=null;
+        sourceSize=outputSize=null;world=null;direct=false;
     }
 }

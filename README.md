@@ -1,6 +1,14 @@
-# FrameScale 0.6.0-alpha.2
+# FrameScale 0.6.0-alpha.3
 
 Экспериментальный client-side мод Minecraft 1.21.1 / NeoForge / Java 21. Использует штатный временной апскейлер Photon (не NVIDIA DLSS). Не содержит нативных библиотек и не меняет рендер до явной команды игрока. Iris используется через проверяемую рефлексию; API не гарантирован, при несовместимости команда сообщает об ошибке.
+
+## 0.6.0-alpha.3 — Direct GPU path
+
+Spatial probes compute access to mutable RGBA8 textures attached to disposable FBOs on the current GPU. If validated, the reduced color texture is read directly and native color written directly: two staging copies and two staging textures are omitted. Otherwise the original immutable staging path remains. Depth blit is retained. The probe uses a small synchronous readback at target creation, not per frame. Java failures during presentation stop Spatial and attempt fallback blit. The probe does not prove all possible driver/renderer combinations are safe.
+
+Iris API v0 is checked for both explicitly disabled shaders and no active shaderpack. Spatial may run with Iris installed only in that state. Unknown state, GPUTape, DH and competing framebuffer owners remain blocked. Enabling shaders stops Spatial before the next scoped world render. Active Photon continues to use TAAU; this is not active shaderpack integration.
+
+Use `/framescale upscale cost start` after the first active world frame, `/framescale upscale cost report` and `/framescale upscale cost stop`. GPU timestamps cover color reconstruction/transfer and depth blit, sampled once per eight active frames, not the world render. Timing stops when resources are recreated; completed results remain until a new capture. Pending results may be discarded. EGL tests also cover mutable FBO textures. No measured RTX or Minecraft FPS improvement yet.
 
 ## 0.6.0-alpha.2 — Experimental world integration
 

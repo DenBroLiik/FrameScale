@@ -3,6 +3,7 @@ package by.xopilot.framescale;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL21;
+import org.lwjgl.opengl.GL30;
 import org.lwjgl.opengl.GL45;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -43,11 +44,58 @@ final class SpatialSelfTest {
                 var alpha=execute(backend,1,1,9,3,single);
                 for(int i=0;i<27;i++) checkPixel(alpha,i,1,2,3,128);
                 return "Spatial self-test PASS on "+GL11.glGetString(GL11.GL_RENDERER)
-                    +": constant, identity, edge, alpha, odd extents. World rendering unchanged.";
+                    +": constant, identity, edge, alpha, odd extents; direct FBO probe="+directSupported(backend)+". World rendering unchanged.";
             }
         } finally {
             for(int i=0;i<previous.length;i++) GL11.glPixelStorei(PIXEL_STORE[i],previous[i]);
         }
+    }
+    /** Probe only private disposable FBOs; never touch the game image. */
+    static boolean directSupported(SpatialUpscaler backend) {
+        if(GL11.glGetInteger(GL21.GL_PIXEL_PACK_BUFFER_BINDING)!=0
+            ||GL11.glGetInteger(GL21.GL_PIXEL_UNPACK_BUFFER_BINDING)!=0) return false;
+        int[] saved=new int[PIXEL_STORE.length];
+        for(int i=0;i<saved.length;i++) saved[i]=GL11.glGetInteger(PIXEL_STORE[i]);
+        int binding=GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        int src=0,dst=0,sf=0,df=0;
+        try {
+            for(int i=0;i<saved.length;i++) GL11.glPixelStorei(PIXEL_STORE[i],i%4==0?1:0);
+            src=mutable(2,2);dst=mutable(5,3);
+            var color=BufferUtils.createByteBuffer(16);
+            for(int i=0;i<4;i++) color.put((byte)37).put((byte)128).put((byte)241).put((byte)255);
+            color.flip();
+            GL45.glTextureSubImage2D(src,0,0,0,2,2,GL11.GL_RGBA,GL11.GL_UNSIGNED_BYTE,color);
+            sf=GL45.glCreateFramebuffers();df=GL45.glCreateFramebuffers();
+            if(sf==0||df==0) return false;
+            GL45.glNamedFramebufferTexture(sf,GL30.GL_COLOR_ATTACHMENT0,src,0);
+            GL45.glNamedFramebufferTexture(df,GL30.GL_COLOR_ATTACHMENT0,dst,0);
+            if(GL45.glCheckNamedFramebufferStatus(sf,GL30.GL_FRAMEBUFFER)!=GL30.GL_FRAMEBUFFER_COMPLETE
+                ||GL45.glCheckNamedFramebufferStatus(df,GL30.GL_FRAMEBUFFER)!=GL30.GL_FRAMEBUFFER_COMPLETE) return false;
+            backend.dispatchDirect(src,dst,0.65f);
+            var result=BufferUtils.createByteBuffer(60);
+            GL45.glGetTextureImage(dst,0,GL11.GL_RGBA,GL11.GL_UNSIGNED_BYTE,result);
+            for(int i=0;i<15;i++) checkPixel(result,i,37,128,241,255);
+            return true;
+        } catch(RuntimeException|LinkageError e) { return false; }
+        finally {
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D,binding);
+            if(sf!=0) GL30.glDeleteFramebuffers(sf);
+            if(df!=0) GL30.glDeleteFramebuffers(df);
+            if(src!=0) GL11.glDeleteTextures(src);
+            if(dst!=0) GL11.glDeleteTextures(dst);
+            for(int i=0;i<saved.length;i++) GL11.glPixelStorei(PIXEL_STORE[i],saved[i]);
+        }
+    }
+    private static int mutable(int w,int h) {
+        int id=GL11.glGenTextures();
+        if(id==0) throw new IllegalStateException("Texture allocation failed");
+        try {
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D,id);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D,GL11.GL_TEXTURE_MIN_FILTER,GL11.GL_NEAREST);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D,GL11.GL_TEXTURE_MAG_FILTER,GL11.GL_NEAREST);
+            GL11.glTexImage2D(GL11.GL_TEXTURE_2D,0,GL11.GL_RGBA8,w,h,0,GL11.GL_RGBA,GL11.GL_UNSIGNED_BYTE,(ByteBuffer)null);
+            return id;
+        } catch(RuntimeException|LinkageError e) { GL11.glDeleteTextures(id);throw e; }
     }
     private static ByteBuffer execute(SpatialUpscaler backend,int w,int h,int ow,int oh,ByteBuffer data) {
         int src=0,dst=0;
