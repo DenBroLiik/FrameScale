@@ -167,6 +167,8 @@ pub mod ngx;
 pub mod vulkan;
 #[cfg(all(feature="vulkan",target_os="linux"))]
 pub mod shared;
+#[cfg(all(feature="gl-interop",target_os="linux"))]
+pub mod gl_interop;
 
 #[cfg(test)]
 mod tests {

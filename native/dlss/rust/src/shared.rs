@@ -23,6 +23,15 @@ impl ImageKind {
     fn supported(self,ctx:&DeviceContext)->bool{
         ctx.supports_export(self.format(),self.usage())
     }
+    fn external_usage(self,ctx:&DeviceContext)->vk::ImageUsageFlags{
+        let features=unsafe{ctx.raw_instance().get_physical_device_format_properties(ctx.physical(),self.format())}.optimal_tiling_features;
+        let mut usage=self.usage();
+        if features.contains(vk::FormatFeatureFlags::STORAGE_IMAGE){usage|=vk::ImageUsageFlags::STORAGE;}
+        if features.contains(vk::FormatFeatureFlags::COLOR_ATTACHMENT){
+            usage|=vk::ImageUsageFlags::COLOR_ATTACHMENT|vk::ImageUsageFlags::INPUT_ATTACHMENT;
+        }
+        usage
+    }
 }
 fn memory_type(bits:u32,flags:&[vk::MemoryPropertyFlags])->Option<u32>{
     let mut fallback=None;
@@ -84,20 +93,28 @@ impl<'a> SharedImage<'a>{
         let mut alloc=Alloc{ctx,image:vk::Image::null(),memory:vk::DeviceMemory::null(),view:vk::ImageView::null(),
             to_gl:vk::Semaphore::null(),to_vk:vk::Semaphore::null()};
         let mut ext=vk::ExternalMemoryImageCreateInfo::default().handle_types(vk::ExternalMemoryHandleTypeFlags::OPAQUE_FD);
-        let mut info=vk::ImageCreateInfo::default().image_type(vk::ImageType::TYPE_2D).format(kind.format())
+        let usage=if external{kind.external_usage(ctx)}else{kind.usage()};
+        let flags=if external{vk::ImageCreateFlags::MUTABLE_FORMAT}else{vk::ImageCreateFlags::empty()};
+        let mut info=vk::ImageCreateInfo::default().flags(flags).image_type(vk::ImageType::TYPE_2D).format(kind.format())
             .extent(vk::Extent3D{width:extent.w,height:extent.h,depth:1}).mip_levels(1).array_layers(1)
-            .samples(vk::SampleCountFlags::TYPE_1).tiling(vk::ImageTiling::OPTIMAL).usage(kind.usage())
+            .samples(vk::SampleCountFlags::TYPE_1).tiling(vk::ImageTiling::OPTIMAL).usage(usage)
             .sharing_mode(vk::SharingMode::EXCLUSIVE).initial_layout(vk::ImageLayout::UNDEFINED);
         if external{info=info.push_next(&mut ext)}
         // Validate exact extent/usage before creation, including the external chain.
         let mut format_ext=vk::PhysicalDeviceExternalImageFormatInfo::default()
             .handle_type(vk::ExternalMemoryHandleTypeFlags::OPAQUE_FD);
         let mut query=vk::PhysicalDeviceImageFormatInfo2::default().format(kind.format()).ty(vk::ImageType::TYPE_2D)
-            .tiling(vk::ImageTiling::OPTIMAL).usage(kind.usage());
+            .tiling(vk::ImageTiling::OPTIMAL).usage(usage).flags(flags);
         if external{query=query.push_next(&mut format_ext)}
+        let mut ep=vk::ExternalImageFormatProperties::default();
         let mut props=vk::ImageFormatProperties2::default();
+        if external{props=props.push_next(&mut ep)}
         unsafe{ctx.raw_instance().get_physical_device_image_format_properties2(ctx.physical(),&query,&mut props)}?;
         let max=props.image_format_properties.max_extent;
+        if external&&(!ep.external_memory_properties.external_memory_features.contains(vk::ExternalMemoryFeatureFlags::EXPORTABLE)
+            ||!ep.external_memory_properties.compatible_handle_types.contains(vk::ExternalMemoryHandleTypeFlags::OPAQUE_FD)){
+            return Err(VkError::Invalid("exact external image configuration unsupported"));
+        }
         if extent.w>max.width||extent.h>max.height{return Err(VkError::Invalid("device image extent"))}
         alloc.image=unsafe{d.create_image(&info,None)}?;
         let req=unsafe{d.get_image_memory_requirements(alloc.image)};
@@ -123,6 +140,8 @@ impl<'a> SharedImage<'a>{
         Ok(Self{alloc:Some(alloc),extent,kind,allocation_size:req.size,external,exposed:false})
     }
     pub fn allocation_size(&self)->u64{self.allocation_size}
+    pub(crate) fn pristine_external(&self)->bool{self.external&&!self.exposed}
+    pub(crate) fn identity(&self)->crate::DeviceIdentity{self.alloc.as_ref().expect("live allocation").ctx.adapter().identity}
     /// Handles do not transfer ownership. Once exposed, explicit close is required.
     pub fn handles(&mut self)->Handles{
         self.exposed=true;

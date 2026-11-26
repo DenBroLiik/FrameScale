@@ -65,6 +65,17 @@ jobs:
           cargo build --manifest-path native/dlss/rust/Cargo.toml --locked --features vulkan --bin vulkan_probe
           timeout 20s native/dlss/rust/target/debug/vulkan_probe --smoke
           timeout 20s native/dlss/rust/target/debug/vulkan_probe --resources
+      - name: Rust OpenGL import API and capability smoke
+        run: |
+          cargo test --manifest-path native/dlss/rust/Cargo.toml --locked --features gl-interop
+          cargo build --manifest-path native/dlss/rust/Cargo.toml --locked --features gl-interop --bin gl_import_probe
+          rc=0
+          EGL_PLATFORM=surfaceless LIBGL_ALWAYS_SOFTWARE=1 timeout 20s native/dlss/rust/target/debug/gl_import_probe || rc=$?
+          if [ "$rc" = 77 ]; then
+            echo "::notice::Rust GL import unsupported on software runner; NVIDIA hardware test required"
+          elif [ "$rc" != 0 ]; then
+            exit "$rc"
+          fi
       - name: Compile mod
         run: gradle --no-daemon build
       - uses: actions/upload-artifact@v4

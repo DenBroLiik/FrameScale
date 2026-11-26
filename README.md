@@ -1,6 +1,10 @@
-# FrameScale 0.7.0-alpha.4
+# FrameScale 0.7.0-alpha.5
 
 Экспериментальный client-side мод Minecraft 1.21.1 / NeoForge / Java 21. Использует штатный временной апскейлер Photon (не NVIDIA DLSS). Не содержит нативных библиотек и не меняет рендер до явной команды игрока. Iris используется через проверяемую рефлексию; API не гарантирован, при несовместимости команда сообщает об ошибке.
+
+## 0.7.0-alpha.5 — Rust OpenGL import
+
+Rust EGL-context import module pairs Vulkan dedicated image memory and two binary semaphores with OpenGL external objects. Verifies device+driver UUID, extensions and dimensions, transfers OwnedFd on successful imports, rolls back partial allocations, exposes explicit wait/signal hooks. External images use mutable format and expanded core usage flags, with exact configuration export query; actual driver compatibility must be tested. Standalone gl_import_probe exercises import/cleanup of five formats on matched NVIDIA only. No pixel roundtrip or queue-family transfer yet in Rust; C roundtrip retained. Software CI may skip hardware import. Not wired to JNI, GLX or gameplay.
 
 ## 0.7.0-alpha.4 — Rust shared GPU allocations
 

@@ -2,6 +2,10 @@
 
 FrameScale uses Photon TAAU, not DLSS. No fake DLSS switch is exposed. Native Linux DLSS Super Resolution requires an NVIDIA-supported Vulkan/NGX implementation; Minecraft 1.21.1 Iris renders using OpenGL. No replacement of GPUTape/Sodium/Iris or forced VulkanMod migration is acceptable.
 
+## Progress in 0.7.0-alpha.5
+
+Rust OpenGL external object import pairs the ash image and FD semaphores with GL texture and semaphore objects. EGL only; exact same-device/driver matching, partial rollback, explicit retirement and GL wait/signal entrypoints. Import-only probe, no Vulkan external ownership barriers or actual roundtrip in Rust yet. Hardware compatibility and NGX remain unverified.
+
 ## Progress in 0.7.0-alpha.4
 
 Rust Vulkan-side shared image module allocates dedicated RGBA8/RGBA16F/R32F/RG16F images, views and two binary semaphores; exports owned memory/semaphore FDs when enabled and supported. Local resource smoke tests are SDK independent. OpenGL import and external ownership transitions still use the older separate C diagnostic; Rust roundtrip and actual RTX/NGX remain unverified.
