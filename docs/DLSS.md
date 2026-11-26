@@ -2,6 +2,10 @@
 
 FrameScale uses Photon TAAU, not DLSS. No fake DLSS switch is exposed. Native Linux DLSS Super Resolution requires an NVIDIA-supported Vulkan/NGX implementation; Minecraft 1.21.1 Iris renders using OpenGL. No replacement of GPUTape/Sodium/Iris or forced VulkanMod migration is acceptable.
 
+## Progress in 0.6.0-alpha.5
+
+Bidirectional RGBA8 diagnostic: 16 roundtrips using two binary semaphores and a single shared allocation; both directions checked with CPU readback. Explicit external ownership transitions and non-coherent verification buffer handling. Hardware success still unverified; no production scheduling, NGX or shader inputs.
+
 ## Progress in 0.6.0-alpha.4
 
 A standalone Linux Vulkan → GL smoke test implements the first external memory/semaphore experiment. See native/interop-probe/README.md. It tests RGBA8 and a single producer/consumer exchange with dedicated allocation and explicit external ownership. Not a real-time backend; no GL → Vulkan handoff, HDR, NGX or in-game interop. Hardware verification pending.

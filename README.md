@@ -1,6 +1,10 @@
-# FrameScale 0.6.0-alpha.4
+# FrameScale 0.6.0-alpha.5
 
 Экспериментальный client-side мод Minecraft 1.21.1 / NeoForge / Java 21. Использует штатный временной апскейлер Photon (не NVIDIA DLSS). Не содержит нативных библиотек и не меняет рендер до явной команды игрока. Iris используется через проверяемую рефлексию; API не гарантирован, при несовместимости команда сообщает об ошибке.
+
+## 0.6.0-alpha.5 — Bidirectional shared-image roundtrip
+
+The Linux interop diagnostic now performs 16 Vulkan → GL → Vulkan cycles with distinct pixel patterns, one exported RGBA8 image, two reusable opaque FD semaphores, explicit external queue ownership release/acquire and a reusable verification buffer. Both directions must match pixel values before PASS. The final round returns ownership to Vulkan without signaling an unused semaphore. Fence waits and readback are diagnostic only; no production GPU frame loop or benchmark claim. Previous CI compiled the tool but skipped actual interop because llvmpipe lacked GL_EXT_semaphore. The physical NVIDIA test remains required. No in-game renderer changes, DLSS integration or active Photon support in this version.
 
 ## 0.6.0-alpha.4 — Vulkan external resource probe
 
