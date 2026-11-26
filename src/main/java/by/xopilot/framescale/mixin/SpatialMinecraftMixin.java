@@ -18,5 +18,5 @@ abstract class SpatialMinecraftMixin {
         if(target!=null) cir.setReturnValue(target);
     }
     @Inject(method="close",at=@At("HEAD"),require=0)
-    private void fs$close(CallbackInfo ci) { SpatialWorld.shutdown(); }
+    private void fs$close(CallbackInfo ci) { by.xopilot.framescale.PhotonCapture.shutdown(); SpatialWorld.shutdown(); }
 }

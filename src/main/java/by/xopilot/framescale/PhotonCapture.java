@@ -18,6 +18,15 @@ import java.util.function.Consumer;
 public final class PhotonCapture {
     private static volatile boolean armed;
     private static long deadline;
+    private static int probeWidth,probeHeight;
+    static String probe(int w,int h,Consumer<String> message){
+        if(armed||TemporalProbe.pending())return "Capture or timing already pending";
+        String result=start(message);
+        if(armed){probeWidth=w;probeHeight=h;}
+        return result;
+    }
+    static String probeReport(){return TemporalProbe.status();}
+    public static void shutdown(){TemporalProbe.cleanup();}
     private static Object world;
     private static Consumer<String> reply;
     private static PhotonBridge.Settings settings;
@@ -44,11 +53,12 @@ public final class PhotonCapture {
     static String uniformReport(){return uniforms;}
     static String stop(){if(armed) finish("Capture cancelled");return last;}
     static void tick(){
+        TemporalProbe.tick();
         if(armed&&(System.nanoTime()-deadline>=0||world!=Minecraft.getInstance().level))
             finish("Capture expired or world changed");
     }
     private static void finish(String s){
-        armed=false;world=null;settings=null;last=s;
+        armed=false;world=null;settings=null;probeWidth=probeHeight=0;last=s;
         var callback=reply;reply=null;
         if(callback!=null) Minecraft.getInstance().execute(()->callback.accept(s));
     }
@@ -122,10 +132,14 @@ public final class PhotonCapture {
             if(color==null) throw new IllegalStateException("Missing colortex0");
             Set<?> flipped=(Set<?>)field(pass,passType,"stageReadsFromAlt");
             boolean alt=flipped.contains(0);
-            var c=texture(number(call(color,alt?"getAltTexture":"getMainTexture")));
-            var d=texture(number(call(targets,"getDepthTexture")));
+            int colorId=number(call(color,alt?"getAltTexture":"getMainTexture"));
+            int depthId=number(call(targets,"getDepthTexture"));
+            var c=texture(colorId);var d=texture(depthId);
             if(!PhotonCaptureContract.colorFormat(c.format)||!PhotonCaptureContract.depthFormat(d.format))
                 throw new IllegalStateException("Unknown input format");
+            if(probeWidth>0){
+                finish(TemporalProbe.run(program,colorId,depthId,probeWidth,probeHeight));return;
+            }
             float[] mv=uniform(program,"gbufferModelView",GL20.GL_FLOAT_MAT4,16);
             float[] proj=uniform(program,"gbufferProjection",GL20.GL_FLOAT_MAT4,16);
             float[] pmv=uniform(program,"gbufferPreviousModelView",GL20.GL_FLOAT_MAT4,16);
@@ -146,7 +160,7 @@ public final class PhotonCapture {
             finish("Photon composite4 candidate | colortex0 "+(alt?"alt":"main")+" "+c+" | depthtex0 candidate "+d
                 +" | configured TAAU "+settings.percent()+"% | camera uniforms "+(camera?"present":"incomplete")
                 +" | raw jitter "+show(jitter)+" | metadata only; no DLSS");
-        } catch(ReflectiveOperationException|RuntimeException|LinkageError e) {
+        } catch(java.io.IOException|ReflectiveOperationException|RuntimeException|LinkageError e) {
             finish("Capture rejected: "+e.getClass().getSimpleName()+": "+e.getMessage());
         }
     }

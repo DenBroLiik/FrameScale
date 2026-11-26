@@ -14,3 +14,7 @@ Next: verify the exact installed Photon pack, active render rectangle and actual
 ## Temporal input compute (alpha.2)
 
 Caller supplies verified crop, nonaliasing textures, unjittered current-to-previous clip transform and current jitter in NDC. Motion is previous minus current in render pixels, GL lower-left origin (+Y up). Invalid projection/background gives zero motion and validity=0. Validity is geometric only, not an occlusion or reactive mask. No dynamic-object motion, hand, transparency or LOD handling. Photon raw taa_offset is not NGX pixel jitter. Runtime sampler and crop verification still required. No in-game dispatch. CI checks packed HDR crop, depth, identity, translation, jitter, invalid projection and bounds on Mesa.
+
+## In-game diagnostic alpha.3
+
+`/framescale capture gpu WIDTH HEIGHT` arms one compute dispatch on the candidate pass. Supply a known valid lower-left crop; allocation bounds do not prove the active render region. Sampler IDs must match expected Iris textures; compare mode must be disabled. Private temporary textures (estimated maximum 128 MiB) are discarded after dispatch; no retained buffers or pixel readback. Identity transform/zero jitter intentionally avoid claiming unverified camera semantics. `/framescale capture gpu` polls the last reported GPU interval (tick-driven). Timing excludes shader compilation/allocation, includes post-dispatch barrier. No image output verification in game, no performance improvement claimed. Existing TAAU draw continues. Runtime testing required.

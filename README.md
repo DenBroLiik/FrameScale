@@ -1,6 +1,10 @@
-# FrameScale 0.8.0-alpha.2
+# FrameScale 0.8.0-alpha.3
 
 Экспериментальный client-side мод Minecraft 1.21.1 / NeoForge / Java 21. Использует штатный временной апскейлер Photon (не NVIDIA DLSS). Не содержит нативных библиотек и не меняет рендер до явной команды игрока. Iris используется через проверяемую рефлексию; API не гарантирован, при несовместимости команда сообщает об ошибке.
+
+## 0.8.0-alpha.3 — In-game temporal compute diagnostic
+
+Opt-in /framescale capture gpu WIDTH HEIGHT runs one private-output compute dispatch before candidate Photon composite4, checking actual bound sampler identities and explicit lower-left crop bounds. Restores GL program/image bindings and active texture, deletes temporary outputs, polls timestamp results without a blocking query wait. Identity transform and zero jitter intentionally used; no real motion or presentation. /framescale capture gpu reports timing. Runtime not tested; shaderpack semantics not established. No DLSS activation.
 
 ## 0.8.0-alpha.2 — Temporal input compute
 
