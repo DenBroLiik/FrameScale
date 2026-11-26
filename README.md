@@ -1,6 +1,10 @@
-# FrameScale 0.7.0-alpha.1
+# FrameScale 0.7.0-alpha.2
 
 Экспериментальный client-side мод Minecraft 1.21.1 / NeoForge / Java 21. Использует штатный временной апскейлер Photon (не NVIDIA DLSS). Не содержит нативных библиотек и не меняет рендер до явной команды игрока. Iris используется через проверяемую рефлексию; API не гарантирован, при несовместимости команда сообщает об ошибке.
+
+## 0.7.0-alpha.2 — Rust DLSS backend
+
+Migrated active NGX control plane to a dependency-free Rust crate. State machine enforces initialization and frame retirement, rejects invalid frame resources, handles history reset, and stops on failed evaluation. Pure Rust device UUID matching and required-extension validation helpers. Optional ngx feature uses a minimal C++ ABI shim against the official external SDK. Old C++ implementation remains as historical source but is not built. Default CI runs Rust tests without SDK. No device creation, JNI wiring, SDK build/link or RTX execution verified yet. Existing gameplay rendering unchanged.
 
 ## 0.7.0-alpha.1 — Optional NGX adapter source
 

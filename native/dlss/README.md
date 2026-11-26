@@ -1,4 +1,4 @@
-# Optional NVIDIA NGX Vulkan adapter
+# Optional NVIDIA NGX Vulkan adapter — Rust
 
 Source-only experimental adapter, based on the public API declarations at NVIDIA/DLSS commit 9981c6350dc58c0ce21f024fd65e31e851c31689.
 No SDK files, NGX runtime or SDK static library are copied into FrameScale. Review the NVIDIA RTX SDK license before obtaining or building against the SDK; acceptance is the developer's responsibility (a parent/legal guardian must consent if the user is below the applicable age of majority). Use an authorized SDK installation and an application-specific project ID, not another application's identifier.
@@ -7,7 +7,7 @@ Build with a local SDK path and Vulkan headers:
 ```sh
 DLSS_SDK=/absolute/path/to/DLSS sh native/dlss/build.sh
 ```
-Produces a FrameScale-only static archive (not a runnable program). The application must link the matching SDK NGX library and satisfy its runtime/dependency requirements separately. Ordinary CI tests the SDK-independent frame contract only. SDK compilation, linking and execution have not yet been verified.
+The current script builds the Rust library and its minimal FFI shim (not a runnable program). The application must link the matching SDK NGX library and satisfy its runtime/dependency requirements separately. Ordinary CI tests the SDK-independent Rust contract and state machine. SDK compilation, linking and execution have not yet been verified.
 
 ## API and ownership
 
@@ -20,3 +20,7 @@ Produces a FrameScale-only static archive (not a runnable program). The applicat
 The adapter does not own the Vulkan context or queue, does not capture Iris textures and is not connected to JNI or Minecraft yet. Thread/ownership and format contracts are necessary, not proof of SDK compatibility. A failed create/evaluate disables further use until close. Next gate: build with the actual SDK, validate NGX-required Vulkan extensions/features and device initialization, execute a synthetic-frame test on NVIDIA, then wire verified Photon pre-TAA inputs.
 
 References: https://github.com/NVIDIA/DLSS/tree/9981c6350dc58c0ce21f024fd65e31e851c31689 and https://github.com/NVIDIA/DLSS/blob/9981c6350dc58c0ce21f024fd65e31e851c31689/LICENSE.txt
+
+## Rust migration in 0.7.0-alpha.2
+
+The active source is rust/src/lib.rs and rust/src/ngx.rs. Old C++ backend files are retained as historical reference, not built by the current script or CI. The only active C++ is ngx_shim.cpp, translating the official SDK ABI/helpers. Rust owns state, validation, reset, error handling and thread confinement. Device UUID selection and extension-list merge are pure Rust helpers, not a Vulkan device creator; caller must enumerate and enable SDK-required features. The first Rust scheduler deliberately allows one in-flight frame and requires explicit retirement before reuse. Never call the unsafe methods with unverified handles, resource layouts or pending GPU work. No implicit waits in the library, no automatic destructor for live NGX. An error after recording disables reuse; explicit close requires retirement/discard. Dropping an unclosed session leaks its native resources and prevents another NGX session rather than risking unsafe teardown. Use a dedicated diagnostic process for hardware tests. Default cargo test --locked in rust/ tests without SDK. The opt-in ngx feature needs a local authorized SDK and system headers, has not been compiled or linked with the SDK here. Build produces a Rust library, not JNI or a runnable DLSS mod. Link consumers against SDK and required dependencies separately. No SDK archive distributed.

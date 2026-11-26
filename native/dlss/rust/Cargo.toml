@@ -1,0 +1,13 @@
+[package]
+name = "framescale-dlss"
+version = "0.7.0-alpha.2"
+edition = "2024"
+rust-version = "1.85"
+publish = false
+
+[features]
+default = []
+ngx = []
+
+[lib]
+crate-type = ["rlib", "staticlib"]
