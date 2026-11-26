@@ -1,6 +1,10 @@
-# FrameScale 0.6.0-alpha.5
+# FrameScale 0.6.0-alpha.6
 
 Экспериментальный client-side мод Minecraft 1.21.1 / NeoForge / Java 21. Использует штатный временной апскейлер Photon (не NVIDIA DLSS). Не содержит нативных библиотек и не меняет рендер до явной команды игрока. Iris используется через проверяемую рефлексию; API не гарантирован, при несовместимости команда сообщает об ошибке.
+
+## 0.6.0-alpha.6 — Shared resource lifecycle
+
+Refactored the native diagnostic into a reusable C resource module (interop_image.h/.c). It creates a dedicated shared RGBA8 image, imports memory and two binary semaphores, exposes GL wait/signal and centralizes rollback/cleanup. Extents are bounded and device image/semaphore capabilities checked. The 16-round probe uses that same implementation; Vulkan waits cover all commands for the external acquire. CI includes context-free argument/empty-lifecycle tests. The module requires an existing EGL context and a caller-verified device; caller manages GPU completion, ownership and submission order. Not yet JNI, a production frame scheduler, active Photon integration or NGX. No change to gameplay rendering.
 
 ## 0.6.0-alpha.5 — Bidirectional shared-image roundtrip
 

@@ -40,7 +40,9 @@ jobs:
       - name: Build and smoke-test native interop probe
         run: |
           sudo apt-get install -y -qq libvulkan-dev libegl-dev libgl-dev mesa-vulkan-drivers
-          cc -std=c11 -O2 -Wall -Wextra -Werror native/interop-probe/probe.c -o /tmp/framescale-interop -lvulkan -lEGL -lGL
+          cc -std=c11 -O2 -Wall -Wextra -Werror native/interop-probe/interop_image.c native/interop-probe/test_interop_image.c -o /tmp/framescale-interop-unit -lvulkan -lEGL -lGL
+          /tmp/framescale-interop-unit
+          cc -std=c11 -O2 -Wall -Wextra -Werror native/interop-probe/probe.c native/interop-probe/interop_image.c -o /tmp/framescale-interop -lvulkan -lEGL -lGL
           rc=0
           EGL_PLATFORM=surfaceless LIBGL_ALWAYS_SOFTWARE=1 timeout 20s /tmp/framescale-interop || rc=$?
           if [ "$rc" = 77 ]; then

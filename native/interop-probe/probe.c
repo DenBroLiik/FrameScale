@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "interop_image.h"
 
 #define W 8
 #define H 8
@@ -47,19 +48,18 @@ int main(int argc,char **argv) {
     if(argc>2||(argc==2&&strlen(argv[1])!=32)) {
         fprintf(stderr,"Usage: %s [32-character lowercase Minecraft GL UUID]\n",argv[0]);return 2;
     }
-    int rc=1,memfd=-1,semfd=-1,returnfd=-1,submitted=0,gl_pending=0;
+    int rc=1,submitted=0,gl_pending=0;
+    FsInteropImage shared={0};
     EGLDisplay display=EGL_NO_DISPLAY;EGLContext context=EGL_NO_CONTEXT;
     VkInstance instance=VK_NULL_HANDLE;VkDevice device=VK_NULL_HANDLE;
     VkPhysicalDevice gpu=VK_NULL_HANDLE,*gpus=NULL;
-    VkImage image=VK_NULL_HANDLE;VkDeviceMemory memory=VK_NULL_HANDLE;
+    VkImage image=VK_NULL_HANDLE;
     VkSemaphore semaphore=VK_NULL_HANDLE,returned=VK_NULL_HANDLE;
     VkCommandPool pool=VK_NULL_HANDLE;
     VkBuffer readback=VK_NULL_HANDLE;VkDeviceMemory host=VK_NULL_HANDLE;
     void *mapped=NULL;
     VkFence fence=VK_NULL_HANDLE;VkQueue queue=VK_NULL_HANDLE;VkCommandBuffer cmd=VK_NULL_HANDLE;
-    GLuint glmem=0,glsem=0,glreturn=0,texture=0;
-    PFNGLDELETEMEMORYOBJECTSEXTPROC delete_mem=NULL;
-    PFNGLDELETESEMAPHORESEXTPROC delete_sem=NULL;
+    GLuint texture=0;
     display=eglGetDisplay(EGL_DEFAULT_DISPLAY);
     if(display==EGL_NO_DISPLAY||!eglInitialize(display,NULL,NULL)||!eglBindAPI(EGL_OPENGL_API)) {
         fprintf(stderr,"SKIP: no EGL OpenGL display\n");rc=77;goto cleanup;
@@ -81,17 +81,6 @@ int main(int argc,char **argv) {
     }
     PROC(PFNGLGETUNSIGNEDBYTEI_VEXTPROC,get_uuid,"glGetUnsignedBytei_vEXT");
     PROC(PFNGLGETUNSIGNEDBYTEVEXTPROC,get_driver,"glGetUnsignedBytevEXT");
-    PROC(PFNGLCREATEMEMORYOBJECTSEXTPROC,create_mem,"glCreateMemoryObjectsEXT");
-    PROC(PFNGLMEMORYOBJECTPARAMETERIVEXTPROC,mem_param,"glMemoryObjectParameterivEXT");
-    PROC(PFNGLIMPORTMEMORYFDEXTPROC,import_mem,"glImportMemoryFdEXT");
-    PROC(PFNGLTEXTURESTORAGEMEM2DEXTPROC,storage,"glTextureStorageMem2DEXT");
-    PROC(PFNGLGENSEMAPHORESEXTPROC,gen_sem,"glGenSemaphoresEXT");
-    PROC(PFNGLIMPORTSEMAPHOREFDEXTPROC,import_sem,"glImportSemaphoreFdEXT");
-    PROC(PFNGLWAITSEMAPHOREEXTPROC,wait_sem,"glWaitSemaphoreEXT");
-    PROC(PFNGLSIGNALSEMAPHOREEXTPROC,signal_sem,"glSignalSemaphoreEXT");
-    delete_mem=(PFNGLDELETEMEMORYOBJECTSEXTPROC)eglGetProcAddress("glDeleteMemoryObjectsEXT");
-    delete_sem=(PFNGLDELETESEMAPHORESEXTPROC)eglGetProcAddress("glDeleteSemaphoresEXT");
-    CHECK(delete_mem&&delete_sem,"Missing cleanup entrypoints");
     GLint uuid_count=0;glGetIntegerv(GL_NUM_DEVICE_UUIDS_EXT,&uuid_count);
     CHECK(uuid_count>=1&&uuid_count<=16,"Invalid GL device UUID count");
     uint8_t uuids[16][16],driver[16];get_driver(GL_DRIVER_UUID_EXT,driver);
@@ -143,47 +132,10 @@ int main(int argc,char **argv) {
     const char *exts[]={VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME};
     VkDeviceCreateInfo dc={.sType=VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,.queueCreateInfoCount=1,.pQueueCreateInfos=&qi,.enabledExtensionCount=2,.ppEnabledExtensionNames=exts};
     VK(vkCreateDevice(gpu,&dc,NULL,&device));vkGetDeviceQueue(device,family,0,&queue);
-    PFN_vkGetMemoryFdKHR get_mfd=(PFN_vkGetMemoryFdKHR)vkGetDeviceProcAddr(device,"vkGetMemoryFdKHR");
-    PFN_vkGetSemaphoreFdKHR get_sfd=(PFN_vkGetSemaphoreFdKHR)vkGetDeviceProcAddr(device,"vkGetSemaphoreFdKHR");
-    CHECK(get_mfd&&get_sfd,"Missing Vulkan FD functions");
-    VkExternalMemoryImageCreateInfo ei={.sType=VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,.handleTypes=ext.handleType};
-    VkImageCreateInfo ii={.sType=VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,.pNext=&ei,.imageType=fi.type,.format=fi.format,
-        .extent={W,H,1},.mipLevels=1,.arrayLayers=1,.samples=VK_SAMPLE_COUNT_1_BIT,.tiling=fi.tiling,
-        .usage=fi.usage,.sharingMode=VK_SHARING_MODE_EXCLUSIVE,.initialLayout=VK_IMAGE_LAYOUT_UNDEFINED};
-    VK(vkCreateImage(device,&ii,NULL,&image));
-    VkMemoryRequirements req;vkGetImageMemoryRequirements(device,image,&req);
+    CHECK(fs_interop_create(&shared,gpu,device,W,H),"Shared image creation failed");
+    image=shared.image;texture=shared.texture;
+    semaphore=shared.to_gl;returned=shared.to_vk;
     VkPhysicalDeviceMemoryProperties mp;vkGetPhysicalDeviceMemoryProperties(gpu,&mp);
-    uint32_t mt=UINT32_MAX;
-    for(uint32_t j=0;j<mp.memoryTypeCount;j++)if(req.memoryTypeBits&(1u<<j)){mt=j;if(mp.memoryTypes[j].propertyFlags&VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)break;}
-    CHECK(mt!=UINT32_MAX,"No compatible memory type");
-    VkMemoryDedicatedAllocateInfo dedicated={.sType=VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO,.image=image};
-    VkExportMemoryAllocateInfo em={.sType=VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO,.pNext=&dedicated,.handleTypes=ext.handleType};
-    VkMemoryAllocateInfo ma={.sType=VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,.pNext=&em,.allocationSize=req.size,.memoryTypeIndex=mt};
-    VK(vkAllocateMemory(device,&ma,NULL,&memory));VK(vkBindImageMemory(device,image,memory,0));
-    VkMemoryGetFdInfoKHR mf={.sType=VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR,.memory=memory,.handleType=ext.handleType};
-    VK(get_mfd(device,&mf,&memfd));CHECK(memfd>=0,"Invalid memory FD");
-    VkExportSemaphoreCreateInfo es={.sType=VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_CREATE_INFO,.handleTypes=si.handleType};
-    VkSemaphoreCreateInfo sc={.sType=VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,.pNext=&es};
-    VK(vkCreateSemaphore(device,&sc,NULL,&semaphore));
-    VK(vkCreateSemaphore(device,&sc,NULL,&returned));
-    VkSemaphoreGetFdInfoKHR sf={.sType=VK_STRUCTURE_TYPE_SEMAPHORE_GET_FD_INFO_KHR,.semaphore=semaphore,.handleType=si.handleType};
-    VK(get_sfd(device,&sf,&semfd));CHECK(semfd>=0,"Invalid semaphore FD");
-    sf.semaphore=returned;
-    VK(get_sfd(device,&sf,&returnfd));CHECK(returnfd>=0,"Invalid return semaphore FD");
-    create_mem(1,&glmem);CHECK(glmem&&glGetError()==GL_NO_ERROR,"GL memory object failed");
-    GLint yes=GL_TRUE;mem_param(glmem,GL_DEDICATED_MEMORY_OBJECT_EXT,&yes);
-    CHECK(glGetError()==GL_NO_ERROR,"GL dedicated flag failed");
-    import_mem(glmem,req.size,GL_HANDLE_TYPE_OPAQUE_FD_EXT,memfd);
-    CHECK(glGetError()==GL_NO_ERROR,"GL memory import failed");memfd=-1; /* GL owns imported FD. */
-    glCreateTextures(GL_TEXTURE_2D,1,&texture);CHECK(texture,"GL texture allocation failed");
-    glTextureParameteri(texture,GL_TEXTURE_TILING_EXT,GL_OPTIMAL_TILING_EXT);
-    storage(texture,1,GL_RGBA8,W,H,glmem,0);CHECK(glGetError()==GL_NO_ERROR,"GL imported image storage failed");
-    gen_sem(1,&glsem);CHECK(glsem&&glGetError()==GL_NO_ERROR,"GL semaphore allocation failed");
-    import_sem(glsem,GL_HANDLE_TYPE_OPAQUE_FD_EXT,semfd);
-    CHECK(glGetError()==GL_NO_ERROR,"GL semaphore import failed");semfd=-1;
-    gen_sem(1,&glreturn);CHECK(glreturn&&glGetError()==GL_NO_ERROR,"GL return semaphore allocation failed");
-    import_sem(glreturn,GL_HANDLE_TYPE_OPAQUE_FD_EXT,returnfd);
-    CHECK(glGetError()==GL_NO_ERROR,"GL return semaphore import failed");returnfd=-1;
 
     /* Reused verification buffer, separate from the shared image. Host readback is
        diagnostic only; there is no CPU copy between the graphics APIs. */
@@ -228,14 +180,12 @@ int main(int argc,char **argv) {
     /* Fence waits and readbacks verify the transport, not production frame pacing.
        Each binary semaphore has one signal and one wait before reuse. */
     VK(vkWaitForFences(device,1,&fence,VK_TRUE,5ull*1000000000ull));submitted=0;
-    GLenum layout=GL_LAYOUT_GENERAL_EXT;
     uint8_t pixels[PIXEL_BYTES];
     uint8_t expected[4]={0,255,0,255};
-    VkPipelineStageFlags wait_stage=VK_PIPELINE_STAGE_TRANSFER_BIT;
+    VkPipelineStageFlags wait_stage=VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
     for(unsigned round=0;round<ROUNDS;round++) {
         gl_pending=1;
-        wait_sem(glsem,0,NULL,1,&texture,&layout);
-        CHECK(glGetError()==GL_NO_ERROR,"GL external semaphore wait failed");
+        CHECK(fs_interop_gl_wait(&shared),"GL external semaphore wait failed");
         glGetTextureImage(texture,0,GL_RGBA,GL_UNSIGNED_BYTE,sizeof(pixels),pixels);
         CHECK(glGetError()==GL_NO_ERROR,"GL imported texture readback failed");
         for(int j=0;j<W*H;j++)
@@ -246,8 +196,7 @@ int main(int argc,char **argv) {
             (uint8_t)(33+round*3),255};
         glClearTexImage(texture,0,GL_RGBA,GL_UNSIGNED_BYTE,produced);
         CHECK(glGetError()==GL_NO_ERROR,"GL shared texture clear failed");
-        signal_sem(glreturn,0,NULL,1,&texture,&layout);
-        CHECK(glGetError()==GL_NO_ERROR,"GL return semaphore signal failed");
+        CHECK(fs_interop_gl_signal(&shared),"GL return semaphore signal failed");
         glFlush();
 
         VK(vkResetFences(device,1,&fence));
@@ -298,25 +247,16 @@ cleanup:
     /* If GPU work timed out, do not destroy in-flight resources. The standalone process exits. */
     if(submitted||gl_pending){fprintf(stderr,"GPU work incomplete; exiting probe without explicit destruction\n");fflush(NULL);_Exit(1);}
     if(context!=EGL_NO_CONTEXT&&eglGetCurrentContext()==context) {
-        if(texture)glDeleteTextures(1,&texture);
-        if(glsem&&delete_sem)delete_sem(1,&glsem);
-        if(glreturn&&delete_sem)delete_sem(1,&glreturn);
-        if(glmem&&delete_mem)delete_mem(1,&glmem);
-        glFinish();eglMakeCurrent(display,EGL_NO_SURFACE,EGL_NO_SURFACE,EGL_NO_CONTEXT);
+        glFinish();
+        fs_interop_destroy(&shared);
+        eglMakeCurrent(display,EGL_NO_SURFACE,EGL_NO_SURFACE,EGL_NO_CONTEXT);
     }
-    if(memfd>=0)close(memfd);
-    if(semfd>=0)close(semfd);
-    if(returnfd>=0)close(returnfd);
     if(device){
         if(fence)vkDestroyFence(device,fence,NULL);
         if(pool)vkDestroyCommandPool(device,pool,NULL);
-        if(semaphore)vkDestroySemaphore(device,semaphore,NULL);
-        if(returned)vkDestroySemaphore(device,returned,NULL);
         if(mapped)vkUnmapMemory(device,host);
         if(readback)vkDestroyBuffer(device,readback,NULL);
         if(host)vkFreeMemory(device,host,NULL);
-        if(image)vkDestroyImage(device,image,NULL);
-        if(memory)vkFreeMemory(device,memory,NULL);
         vkDestroyDevice(device,NULL);
     }
     free(gpus);if(instance)vkDestroyInstance(instance,NULL);
