@@ -57,22 +57,23 @@ def run(matrix,hand_matrix=None,origin=(1,1)):
 identity=[1.,0.,0.,0.,0.,1.,0.,0.,0.,0.,1.,0.,0.,0.,0.,1.]
 c,d,m,v=run(identity)
 assert c[:4]==[2.,2.,.5,1.] and c[-4:]==[8.,6.,.5,1.]
-assert d[9]==1. and v[9]==0 and v[17]==3 and sum(1 for x in v if x&1)==34
+assert d[9]==1. and v[9]==0 and v[17]==7 and sum(1 for x in v if x&1)==34
+assert v[8]&4 and v[16]&4 and v[17]&4 and not (v[9]&4)
 assert not any(m)
 translated=identity.copy();translated[12]=2/7;translated[13]=2/5
 c,d,m,v=run(translated)
 assert v[0]==1 and abs(m[0]-1)<.002 and abs(m[1]-1)<.002
-assert v[17]==3 and m[17*2:17*2+2]==[0.,0.] and v[9]==0
+assert v[17]==7 and m[17*2:17*2+2]==[0.,0.] and v[9]==0 and v[8]&4
 assert v[6]==0 and v[28]==0
 c,d,m,v=run(identity)
-assert not any(m) and v[0]==1 and v[17]==3
+assert not any(m) and v[0]==1 and v[17]==7 and v[8]&4
 bad=identity.copy();bad[15]=-1.
 c,d,m,v=run(bad)
-assert sum(1 for x in v if x&1)==1 and v[17]==3 and not any(m) and c[:4]==[2.,2.,.5,1.]
+assert sum(1 for x in v if x&1)==1 and v[17]==7 and v[8]&4 and not any(m) and c[:4]==[2.,2.,.5,1.]
 c,d,m,v=run(identity,origin=(9,6))
 assert v[0]==1 and v[1]==1 and v[2]==0 and c[8:12]==[0.,0.,0.,1.] and d[2]==1.
 gl('UseProgram',None,u)(0)
 gl('DeleteProgram',None,u)(program);gl('DeleteShader',None,u)(shader)
 current(display,None,None,None)
 bind(E,'eglDestroyContext',u,p,p)(display,context);bind(E,'eglTerminate',u,p)(display)
-print('Temporal inputs GPU tests PASS: HDR crop, depth, camera motion, hand camera lock, invalid projection, bounds')
+print('Temporal inputs GPU tests PASS: HDR crop, depth, camera motion, hand camera lock, depth-edge flags, invalid projection, bounds')

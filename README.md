@@ -1,15 +1,19 @@
-# FrameScale 0.8.0-alpha.7
+# FrameScale 0.8.0-alpha.8
 
-Экспериментальный client-side мод Minecraft 1.21.1 / NeoForge / Java 21. Использует штатный временной апскейлер Photon (не NVIDIA DLSS). Не содержит нативных библиотек и не меняет рендер до явной команды игрока. Iris используется через проверяемую рефлексию; API не гарантирован, при несовместимости команда сообщает об ошибке.
+Экспериментальный client-side мод Minecraft 1.21.1 / NeoForge / Java 21. Использует Photon TAAU как внешний временной апскейлер; FrameScale исследует входные данные и пока не заменяет игровой рендер и не активирует NVIDIA DLSS.
+
+## 0.8.0-alpha.8 — Depth-edge and disocclusion-risk diagnostics
+
+Two bounded diagnostic improvements:
+1. The temporal compute shader compares each valid depth sample with its four immediate neighbors. A relative threshold with an absolute floor marks depth discontinuities in validity bit 2. This is a spatial depth-edge candidate, not proof of temporal disocclusion.
+2. The one-shot 128×128 readback reports total edge candidates, their ratio, and how many also have valid camera reprojection. The report is produced with the existing motion statistics; no additional readback surface or per-frame readback was added.
+
+Depth-edge candidates can include silhouettes, thin geometry, hand/world transitions and depth-buffer discontinuities. The heuristic does not reconstruct linear view-space depth, classify foreground/background ownership, or compare against previous-frame depth. It must not be described as a completed disocclusion mask. The original Photon draw and TAAU remain untouched.
+
 
 ## 0.8.0-alpha.7 — Bounded motion-vector diagnostics
 
 After the one-shot private compute dispatch completes, FrameScale reads back only the central region (at most 128×128) of motion vectors and validity. Reports valid sample ratio, Photon hand-path count, mean X/Y motion, p95 and maximum magnitude. This is an explicit diagnostic readback after the GPU timestamp is available, not a per-frame readback; it may briefly synchronize the render thread. Motion statistics are diagnostic only and do not establish disocclusion, reactive masks, dynamic-object motion, or DLSS readiness. Added independent bounded-input/statistics tests. The existing Photon draw and history remain untouched.
-
-## 0.8.0-alpha.6 — Camera reprojection input probe
-
-
-Экспериментальный client-side мод Minecraft 1.21.1 / NeoForge / Java 21. Использует штатный временной апскейлер Photon (не NVIDIA DLSS). Не содержит нативных библиотек и не меняет рендер до явной команды игрока. Iris используется через проверяемую рефлексию; API не гарантирован, при несовместимости команда сообщает об ошибке.
 
 ## 0.8.0-alpha.6 — Camera reprojection input probe
 

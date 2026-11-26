@@ -30,3 +30,7 @@ Caller supplies verified crop, nonaliasing textures, unjittered current-to-previ
 ## Bounded motion readback (alpha.7)
 
 After the timestamp query becomes available, the diagnostic reads back only the center 128×128 (or smaller) region of the private RG16F motion and R8UI validity outputs. It reports valid projection ratio, hand-path sample count, mean vector, p95 magnitude and maximum magnitude. This is a one-shot diagnostic operation and can briefly synchronize the render thread; it is not part of the normal frame loop. A high valid ratio does not prove correct occlusion handling or complete motion vectors. The validity bits still describe only projection bounds and the Photon hand path. No dynamic-object vectors, disocclusion mask, reactive mask, final image replacement, NGX evaluation or FPS improvement is claimed.
+
+## Depth-edge and disocclusion-risk diagnostics (alpha.8)
+
+The temporal compute shader sets validity bit 2 when a valid depth sample differs from any in-bounds four-connected neighbor by more than max(0.001, 1.5% of the larger absolute raw depth). This intentionally operates on raw device depth and is a conservative heuristic, not a metric-distance threshold. The one-shot center readback reports edge candidates and the subset with valid reprojection. Edges can be ordinary silhouettes, thin geometry, hand/world boundaries or depth discontinuities. No previous-frame depth comparison, occlusion ownership test, or temporal disocclusion mask is implemented. Photon rendering and history are not modified.

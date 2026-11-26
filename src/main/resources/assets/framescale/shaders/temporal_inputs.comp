@@ -1,8 +1,8 @@
 #version 450 core
 // Camera-only reprojection for Photon TAAU. GL lower-left origin; +Y up.
 // Motion is previous UV minus current UV, expressed in render-resolution pixels.
-// validOut bit 0 = projection valid; bit 1 = hand depth (camera translation suppressed).
-// This does not represent per-object animation, particles, transparency or LOD motion.
+// validOut bit 0 = projection valid; bit 1 = hand depth; bit 2 = depth-edge candidate.
+// Depth edges are spatial risk hints, not temporal disocclusion detection.
 layout(local_size_x=8,local_size_y=8) in;
 layout(binding=0) uniform sampler2D sceneColor;
 layout(binding=1) uniform sampler2D sceneDepth;
@@ -14,7 +14,24 @@ uniform ivec2 sourceOrigin,renderExtent;
 uniform mat4 currentToPreviousClip;
 uniform mat4 currentToPreviousHandClip;
 const float HAND_DEPTH=0.56;
+
 bool finite4(vec4 v){return !any(isnan(v))&&!any(isinf(v));}
+
+bool hasDepthEdge(ivec2 pixel,ivec2 sourceSize,float centerDepth){
+    const ivec2 offsets[4]=ivec2[4](
+        ivec2(-1,0),ivec2(1,0),ivec2(0,-1),ivec2(0,1)
+    );
+    for(int i=0;i<4;i++){
+        ivec2 q=pixel+offsets[i];
+        if(any(lessThan(q,ivec2(0)))||any(greaterThanEqual(q,sourceSize)))continue;
+        float neighbor=texelFetch(sceneDepth,q,0).r;
+        if(isnan(neighbor)||isinf(neighbor)||neighbor<0.||neighbor>1.)continue;
+        float threshold=max(0.001,max(abs(centerDepth),abs(neighbor))*0.015);
+        if(abs(neighbor-centerDepth)>threshold)return true;
+    }
+    return false;
+}
+
 void main(){
     ivec2 p=ivec2(gl_GlobalInvocationID.xy);
     if(any(greaterThanEqual(p,renderExtent))||
@@ -23,15 +40,17 @@ void main(){
        any(greaterThanEqual(p,imageSize(motionOut)))||
        any(greaterThanEqual(p,imageSize(validOut)))) return;
     ivec2 s=sourceOrigin+p;
-    vec3 rgb=vec3(0);float depth=1.;vec2 motion=vec2(0);uint valid=0u;
+    vec3 rgb=vec3(0);float depth=1.;vec2 motion=vec2(0);uint flags=0u;
+    ivec2 sourceSize=textureSize(sceneDepth,0);
     if(all(greaterThanEqual(s,ivec2(0)))&&all(lessThan(s,textureSize(sceneColor,0)))&&
-       all(lessThan(s,textureSize(sceneDepth,0)))){
+       all(lessThan(s,sourceSize))){
         vec3 c=texelFetch(sceneColor,s,0).rgb;
         bool colorValid=finite4(vec4(c,1));
         if(colorValid) rgb=clamp(c,vec3(-65504),vec3(65504));
         float z=texelFetch(sceneDepth,s,0).r;
         if(colorValid&&!isnan(z)&&!isinf(z)&&z>=0.&&z<1.){
             depth=z;
+            if(hasDepthEdge(s,sourceSize,z))flags|=4u;
             // Photon composite4 calls screen_to_view_space(..., false): its
             // projection matrices already define the coordinate convention here.
             vec2 currentNdc=((vec2(p)+.5)/vec2(renderExtent))*2.-1.;
@@ -48,7 +67,7 @@ void main(){
                    previousNdc.z>=-1.&&previousNdc.z<=1.&&
                    all(lessThanEqual(abs(deltaPixels),vec2(65504)))){
                     motion=deltaPixels;
-                    valid=1u|(hand?2u:0u);
+                    flags|=1u|(hand?2u:0u);
                 }
             }
         }else if(!isnan(z)&&!isinf(z)&&z>=0.&&z<=1.){
@@ -58,5 +77,5 @@ void main(){
     imageStore(hdrOut,p,vec4(rgb,1));
     imageStore(depthOut,p,vec4(depth,0,0,0));
     imageStore(motionOut,p,vec4(motion,0,0));
-    imageStore(validOut,p,uvec4(valid,0,0,0));
+    imageStore(validOut,p,uvec4(flags,0,0,0));
 }
